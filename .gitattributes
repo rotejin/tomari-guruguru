@@ -1,0 +1,16 @@
+* text=auto
+
+*.html text eol=lf
+*.jsx text eol=lf
+*.js text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.py text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.bat text eol=crlf
+
+*.png binary
+*.webp binary
+*.wav binary
+.thumbnail binary
