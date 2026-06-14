@@ -47,6 +47,13 @@ npm run build
 npm run preview   # ビルド結果をローカル確認
 ```
 
+preview は GitHub Pages と同じ `/tomari-guruguru/` のベースパスで起動します。
+
+```text
+http://127.0.0.1:4173/tomari-guruguru/talk.html
+http://127.0.0.1:4173/tomari-guruguru/guruguru.html
+```
+
 ---
 
 ## ディレクトリ構成
