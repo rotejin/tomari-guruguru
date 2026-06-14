@@ -22,6 +22,8 @@ npm install
 
 ## ローカル起動
 
+### ホストで直接起動
+
 Windowsなら `start.bat` をダブルクリックすると、ローカルサーバーを起動してブラウザで開きます。
 
 手動で起動する場合は:
@@ -36,6 +38,25 @@ npm run dev
 http://127.0.0.1:5173/talk.html
 http://127.0.0.1:5173/guruguru.html
 ```
+
+### Docker で起動
+
+ホストに Node.js を入れずに起動できます。
+
+```bash
+docker compose up -d                  # コンテナ起動
+docker compose exec web npm ci        # 初回のみ: 依存インストール
+docker compose exec web npm run dev   # 開発サーバー起動
+```
+
+起動後、ホストのブラウザから:
+
+```text
+http://127.0.0.1:5173/talk.html
+http://127.0.0.1:5173/guruguru.html
+```
+
+停止は `docker compose down`。
 
 注意:
 

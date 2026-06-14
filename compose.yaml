@@ -1,0 +1,11 @@
+services:
+  web:
+    image: node:22-bookworm-slim
+    working_dir: /usr/src/app
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_OPEN: "false"
+    tty: true
