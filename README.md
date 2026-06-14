@@ -9,6 +9,11 @@
 
 ## セットアップ
 
+必要環境:
+
+- Node.js 22 LTS 推奨
+- Vite 8 の要件: Node.js 20.19+ または 22.12+
+
 ```bash
 npm install
 ```
@@ -60,12 +65,12 @@ npm run preview   # ビルド結果をローカル確認
 │   ├── tweaks-panel.jsx    # 画面右下の調整パネル
 │   └── character-config.js # キャラ画像の参照先を一元管理
 ├── public/
-│   ├── slices2/            # スライス済みキャラ画像 (Git追跡)
-│   └── 再生用トマリセリフ.wav
+│   └── slices2/            # スライス済みキャラ画像 (Git追跡)
 ├── docs/                   # 画像生成・差し替え手順の資料
 │   ├── 01_画像指示例.png
 │   ├── 01_画像生成用テンプレ.png
 │   ├── 01_画像生成用プロンプト.txt
+│   ├── 再生用トマリセリフ.wav
 │   └── 新キャラ差し替え手順.md
 ├── tools/
 │   └── slice_character_sheets.py
