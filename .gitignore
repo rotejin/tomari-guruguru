@@ -11,6 +11,5 @@ node_modules/
 dist/
 public/*
 !public/slices2/
-screenshot*
 .DS_Store
 Thumbs.db
