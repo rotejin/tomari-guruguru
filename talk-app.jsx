@@ -1,3 +1,7 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import charConfig from './character-config';
+
 const { useState, useEffect, useRef, useMemo } = React;
 
 const TALK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -12,11 +16,18 @@ const TALK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "autoBlink": true
 }/*EDITMODE-END*/;
 
-const ROWS = 5, COLS = 5;
+const { rows: ROWS, cols: COLS } = charConfig;
 // シート: 目開け×口[とじ/中間/開け] = A/B/C, 目閉じ×口[とじ/中間/開け] = D/E/F
-const SHEETS = ['A', 'B', 'C', 'D', 'E', 'F'];
+const SHEETS = [
+  charConfig.sheets.eyesOpen.close,   // A
+  charConfig.sheets.eyesOpen.half,    // B
+  charConfig.sheets.eyesOpen.open,    // C
+  charConfig.sheets.eyesClosed.close, // D
+  charConfig.sheets.eyesClosed.half,  // E
+  charConfig.sheets.eyesClosed.open,  // F
+];
 const sheetFor = (eyesClosed, mouth) => SHEETS[(eyesClosed ? 3 : 0) + mouth];
-const SRC = (sheet, r, c) => `slices2/${sheet}/r${r}c${c}.webp`;
+const SRC = (sheet, r, c) => charConfig.src(sheet, r, c);
 const BG_OPTIONS = ['#FFF8EE', '#FDEFEF', '#EEF4FB', '#2B2926'];
 
 function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }

@@ -1,11 +1,15 @@
 sheets/
 uploads/
 新キャラ資料/
+桜草メイ素材/
 *.psd
 *.clip
 *.kra
 *.xcf
 __pycache__/
 *.pyc
+node_modules/
+dist/
+screenshot*
 .DS_Store
 Thumbs.db

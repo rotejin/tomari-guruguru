@@ -3,39 +3,35 @@ setlocal
 
 pushd "%~dp0"
 if errorlevel 1 (
-  echo Failed to open the app folder.
+  echo Failed to open the project folder.
   pause
   exit /b 1
 )
 
-rem Default page: Tomari Talk
-set "PAGE=%%E3%%83%%88%%E3%%83%%9E%%E3%%83%%AA%%E3%%83%%88%%E3%%83%%BC%%E3%%82%%AF.html"
-
-set "PYTHON_CMD=python"
-python --version >nul 2>nul
+rem Check Node.js
+node --version >nul 2>nul
 if errorlevel 1 (
-  set "PYTHON_CMD=py -3"
-  py -3 --version >nul 2>nul
+  echo Node.js was not found.
+  echo Please install Node.js, then run this file again.
+  pause
+  exit /b 1
+)
+
+rem Install dependencies if needed
+if not exist node_modules (
+  echo Installing dependencies...
+  call npm install
   if errorlevel 1 (
-    echo Python 3 was not found.
-    echo Please install Python 3, then run this file again.
+    echo npm install failed.
     pause
     exit /b 1
   )
 )
 
-set "PORT=8000"
-for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$l=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0);$l.Start();$p=$l.LocalEndpoint.Port;$l.Stop();$p" 2^>nul') do set "PORT=%%P"
-
-set "URL=http://127.0.0.1:%PORT%/%PAGE%"
-
-echo Starting Tomari local server...
+echo Starting Tomari dev server...
 echo Close the server window to stop the app.
-echo %URL%
 
-start "Tomari local server" /D "%~dp0" cmd /k "%PYTHON_CMD% -m http.server %PORT% --bind 127.0.0.1"
-timeout /t 2 /nobreak >nul
-start "" "%URL%"
+start "Tomari dev server" /D "%~dp0" cmd /k "npx vite --host 127.0.0.1 --open /%E3%83%88%E3%83%9E%E3%83%AA%E3%83%88%E3%83%BC%E3%82%AF.html"
 
 popd
 endlocal

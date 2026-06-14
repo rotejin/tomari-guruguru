@@ -496,7 +496,7 @@ def main() -> None:
     parser.add_argument("--source", default="新キャラ資料", type=Path)
     parser.add_argument("--sheets-out", default="sheets", type=Path)
     parser.add_argument("--uploads-out", default="uploads", type=Path)
-    parser.add_argument("--slices-out", default="slices2", type=Path)
+    parser.add_argument("--slices-out", default="slices3", type=Path)
     parser.add_argument("--cell", default=900, type=int)
     parser.add_argument("--canvas", default=1200, type=int)
     parser.add_argument("--anchor-x", default=600, type=int)
