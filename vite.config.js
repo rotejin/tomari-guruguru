@@ -6,8 +6,9 @@ export default defineConfig(({ command }) => ({
   base: command === 'build' ? '/tomari-guruguru/' : '/',
   plugins: [react()],
   server: {
-    host: '127.0.0.1',
-    open: '/talk.html',
+    host: true,
+    port: 5173,
+    open: process.env.VITE_OPEN === 'false' ? false : '/talk.html'
   },
   build: {
     rollupOptions: {
