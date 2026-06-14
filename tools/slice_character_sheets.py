@@ -65,7 +65,15 @@ def decode_rgba(path: Path, target_size: int | None = None) -> bytes:
         str(path),
     ]
     if target_size is not None:
-        cmd += ["-vf", f"scale={target_size}:{target_size}:flags=lanczos"]
+        # Fit the source inside the target square without distorting the aspect
+        # ratio, then pad the remaining area with transparency.
+        resize_filter = (
+            f"scale={target_size}:{target_size}:"
+            "force_original_aspect_ratio=decrease:flags=lanczos,"
+            f"pad={target_size}:{target_size}:(ow-iw)/2:(oh-ih)/2:color=black@0,"
+            "format=rgba"
+        )
+        cmd += ["-vf", resize_filter]
     cmd += ["-f", "rawvideo", "-pix_fmt", "rgba", "-"]
     return run(cmd)
 
@@ -537,7 +545,10 @@ def main() -> None:
         w_orig, h_orig = probe_size(src)
         expected = args.cell * 5
         if (w_orig, h_orig) != (expected, expected):
-            print(f"  NOTE: {src.name} is {w_orig}x{h_orig}, will resize to {expected}x{expected}")
+            print(
+                f"  NOTE: {src.name} is {w_orig}x{h_orig}, "
+                f"will fit into {expected}x{expected} without stretching"
+            )
             w, h = expected, expected
             resize_target = expected
         else:
