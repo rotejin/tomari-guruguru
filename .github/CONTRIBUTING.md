@@ -16,6 +16,7 @@
 送る前に確かめてほしいこと:
 
 - `npm ci` のあと、`npm test`・`npm run build`・`npm run verify:pages` が通る。`npm audit` に既知の脆弱性が出ない。
+- `tools/slice_character_sheets.py` を変えたら、`python -B -m unittest discover -s tests -p "test_*.py"` も通る（標準ライブラリだけで動き、ffmpeg は要らない）。
 - 画面や動きを変えたら、`npm run dev` で `talk.html`・`guruguru.html` を開いて確かめる（マイク・音声ファイル・マウス追従・まばたき）。
 - 依存パッケージを変えたら、`package.json` と `package-lock.json` の両方を送る。
 - **開発用サーバーの待ち受け先（`vite.config.js` の `server.host: '127.0.0.1'`）は変えない。** 変えると、同じネットワークのほかの機器から届くようになります。
@@ -48,6 +49,7 @@ Please open an issue first for larger changes. Small fixes (typos, documentation
 Before sending:
 
 - After `npm ci`, `npm test`, `npm run build` and `npm run verify:pages` pass and `npm audit` reports no known vulnerabilities.
+- If you changed `tools/slice_character_sheets.py`, `python -B -m unittest discover -s tests -p "test_*.py"` passes too (standard library only, no ffmpeg needed).
 - If you changed the UI or behaviour, open `talk.html` and `guruguru.html` with `npm run dev` and try the microphone, an audio file, mouse following and blinking.
 - If you changed dependencies, send both `package.json` and `package-lock.json`.
 - **Do not change where the development server listens (`server.host: '127.0.0.1'` in `vite.config.js`).** Otherwise other devices on the same network can reach it.
