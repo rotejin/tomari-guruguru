@@ -6,7 +6,7 @@
 
 ## 確認したこと / Checklist
 
-- [ ] `npm run build` と `npm run verify:pages` が通り、`npm audit` に脆弱性が出なかった / Build, Pages verification and `npm audit` pass
+- [ ] `npm test`・`npm run build`・`npm run verify:pages` が通り、`npm audit` に脆弱性が出なかった / Tests, build, Pages verification and `npm audit` pass
 - [ ] 画面や動きを変えた場合、`talk.html`・`guruguru.html` で、マイク・音声ファイル・マウス追従を確かめた / For UI or behaviour changes, tried the microphone, an audio file and mouse following
 - [ ] 依存パッケージを変えた場合、`package.json` と `package-lock.json` の両方を含めた / For dependency changes, both `package.json` and `package-lock.json` are included
 - [ ] 開発用サーバーの待ち受け先（`server.host: '127.0.0.1'`）を変えていない / Did not change where the development server listens

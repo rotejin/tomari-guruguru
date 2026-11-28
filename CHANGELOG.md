@@ -3,6 +3,15 @@
 このリポジトリの主な変更を記録します。
 Notable changes to this repository are recorded here.
 
+## Unreleased
+
+### 修正 / Fixed
+
+- トーク版で、「マイク開始」をマイクの許可を待つ間にもう一度押すと、マイクを 2 本取り、1 本目が「マイク停止」でも止まらず録音が続いていた。今は、許可を待つ間はボタンを無効にし、始めている途中の 2 回目は何もしない。許可の後の準備で失敗した時も、取ったマイクを止める。
+- 音声エンジンを `src/audio-engine.js` に分け、マイクの開始・停止の検査（`npm test`、node だけで動く）を足した。公開のワークフローでも、ビルドの前に走らせる。
+
+In the talk page, pressing "マイク開始" again while the browser was still asking for microphone access opened a second microphone stream, and the first one kept recording even after "マイク停止". The button is now disabled while waiting, a second start is ignored, and a stream is stopped if setting it up fails. The audio engine now lives in `src/audio-engine.js`, with microphone start/stop tests (`npm test`, node only) that also run in the Pages workflow before the build.
+
 ## v1.0.0 - 2026-11-28
 
 ### セキュリティ / Security

@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import charConfig from './character-config';
+import { makeAudioEngine } from './audio-engine.js';
 
 const { useState, useEffect, useRef, useMemo } = React;
 
@@ -32,64 +33,14 @@ const BG_OPTIONS = ['#FFF8EE', '#FDEFEF', '#EEF4FB', '#2B2926'];
 
 function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
 
-// ---- 音声エンジン ----
-function makeAudioEngine() {
-  const st = {
-    ctx: null, micAnalyser: null, micStream: null,
-    fileAnalyser: null, fileSourceMade: false, buf: null
-  };
-  function ctx() {
-    if (!st.ctx) st.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    return st.ctx;
-  }
-  function levelOf(analyser) {
-    if (!analyser) return 0;
-    if (!st.buf || st.buf.length !== analyser.fftSize) st.buf = new Float32Array(analyser.fftSize);
-    analyser.getFloatTimeDomainData(st.buf);
-    let sum = 0;
-    for (let i = 0; i < st.buf.length; i++) sum += st.buf[i] * st.buf[i];
-    return Math.sqrt(sum / st.buf.length);
-  }
-  return {
-    async startMic() {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const c = ctx();
-      await c.resume();
-      const src = c.createMediaStreamSource(stream);
-      const an = c.createAnalyser();
-      an.fftSize = 1024;
-      src.connect(an);
-      st.micStream = stream;
-      st.micAnalyser = an;
-    },
-    stopMic() {
-      if (st.micStream) st.micStream.getTracks().forEach((t) => t.stop());
-      st.micStream = null;
-      st.micAnalyser = null;
-    },
-    attachAudioEl(el) {
-      if (st.fileSourceMade) return;
-      const c = ctx();
-      const src = c.createMediaElementSource(el);
-      const an = c.createAnalyser();
-      an.fftSize = 1024;
-      src.connect(an);
-      an.connect(c.destination);
-      st.fileAnalyser = an;
-      st.fileSourceMade = true;
-    },
-    resume() { if (st.ctx) st.ctx.resume(); },
-    level() { return Math.max(levelOf(st.micAnalyser), levelOf(st.fileAnalyser)); },
-    micOn() { return !!st.micAnalyser; }
-  };
-}
-
 function App() {
   const [t, setTweak] = useTweaks(TALK_DEFAULTS);
   const [cell, setCell] = useState({ r: 2, c: 2 });
   const [mouth, setMouth] = useState(0);        // 0:とじ 1:中間 2:開け
   const [blink, setBlink] = useState(false);
   const [micOn, setMicOn] = useState(false);
+  const [micPending, setMicPending] = useState(false); // マイクの許可を待つ間など（ボタンの表示用）
+  const micBusyRef = useRef(false); // 同じ理由の、すぐに効く印（描き直しを待たない）
   const [micErr, setMicErr] = useState('');
   const [fileName, setFileName] = useState('');
 
@@ -194,13 +145,19 @@ function App() {
   }, [t.autoBlink]);
 
   async function toggleMic() {
+    if (micBusyRef.current) return; // 許可を待つ間の押し直しは無視する（ボタンも無効にしてある）
     setMicErr('');
     if (micOn) { engine.stopMic(); setMicOn(false); return; }
+    micBusyRef.current = true;
+    setMicPending(true);
     try {
-      await engine.startMic();
-      setMicOn(true);
+      // 本当に始まった時だけ「マイク停止」にする
+      if (await engine.startMic()) setMicOn(true);
     } catch (e) {
       setMicErr('マイクを使用できません（権限を確認してください）');
+    } finally {
+      micBusyRef.current = false;
+      setMicPending(false);
     }
   }
 
@@ -265,14 +222,14 @@ function App() {
         padding: '12px 18px', cursor: 'default',
         boxShadow: '0 6px 24px rgba(60,48,38,0.10)'
       }}>
-        <button onClick={toggleMic} style={{
+        <button onClick={toggleMic} disabled={micPending} aria-busy={micPending} style={{
           display: 'flex', alignItems: 'center', gap: 8,
           fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
           color: micOn ? '#fff' : inkColor,
           background: micOn ? '#D96C4F' : 'transparent',
           border: `1.5px solid ${micOn ? '#D96C4F' : lineColor}`,
-          borderRadius: 12, padding: '9px 16px', cursor: 'pointer',
-          minHeight: 44
+          borderRadius: 12, padding: '9px 16px', cursor: micPending ? 'wait' : 'pointer',
+          minHeight: 44, opacity: micPending ? 0.6 : 1
         }}>
           <span style={{
             width: 9, height: 9, borderRadius: '50%',
