@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --base /tomari-guruguru/",
     "verify:pages": "node scripts/verify-pages-build.mjs",
-    "test": "node --test tests/audio-engine.test.mjs"
+    "test": "node --test tests/audio-engine.test.mjs tests/motion.test.mjs"
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
