@@ -29,7 +29,8 @@ const SHEETS = [
 ];
 const sheetFor = (eyesClosed, mouth) => SHEETS[(eyesClosed ? 3 : 0) + mouth];
 const SRC = (sheet, r, c) => charConfig.src(sheet, r, c);
-const BG_OPTIONS = ['#FFF8EE', '#FDEFEF', '#EEF4FB', '#2B2926'];
+// 最後のグリーンは、OBS などのクロマキーで背景を抜くため（トマリの絵には緑を使っていない）
+const BG_OPTIONS = ['#FFF8EE', '#FDEFEF', '#EEF4FB', '#2B2926', '#00FF00'];
 
 function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
 

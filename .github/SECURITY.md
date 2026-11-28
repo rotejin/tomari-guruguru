@@ -27,7 +27,7 @@
 - **マイク**の音は、ブラウザの中で音の大きさを測るためだけに使います。録音・保存・送信はしません。音を取り込むのは、「マイク開始」を押してから「マイク停止」を押すまでの間だけです。
 - **音声ファイル**は、自分で選んだファイルを、ブラウザの中で再生するだけです。送信はしません。
 - ブラウザに保存する物はありません（Cookie・localStorage を使いません）。
-- 調整パネル（Tweaks）は、ページがほかのページに埋め込まれている時だけ、親のページと画面の設定の値をやり取りします。受け取って変わるのは、パネルの開け閉めだけです。
+- 調整パネル（Tweaks）は、画面の設定の値（色・大きさ・感度など）を親のページに送ります。ほかのページに届くのは、このページがほかのページに埋め込まれている時だけです。ほかのページ（埋め込んだページや、このページを開いたページ）から受け取って変わるのは、パネルの開け閉めだけです。
 
 ### 手元の開発用サーバー（`start.bat`・`npm run dev`）
 
@@ -48,4 +48,4 @@
 
 Please do not post vulnerability details in public issues. Use **Security → Report a vulnerability** (GitHub private vulnerability reporting) in this repository. If that is not possible, send a direct message to [@rotejin](https://x.com/rotejin) on X.
 
-The pages connect only to Google Fonts (Zen Maru Gothic); everything else is loaded from the same site. Microphone audio is used only inside the browser to measure volume; it is never recorded, stored or uploaded, and it is captured only between "マイク開始" (start) and "マイク停止" (stop). Audio files you choose are played in the browser only. Nothing is saved in the browser. The Tweaks panel exchanges only display settings with a parent page when the page is embedded, and a parent page can only open or close the panel. The local development server (`start.bat`, `npm run dev`) listens on 127.0.0.1 only; do not change `server.host` in `vite.config.js`. Dependencies are pinned in `package-lock.json`, installed with `npm ci` and checked with `npm audit` on every build; the build job is read-only and only the deploy job may publish to GitHub Pages, with actions pinned by commit SHA. `tools/slice_character_sheets.py` runs `ffmpeg` and `ffprobe` locally without a shell and makes no network connections.
+The pages connect only to Google Fonts (Zen Maru Gothic); everything else is loaded from the same site. Microphone audio is used only inside the browser to measure volume; it is never recorded, stored or uploaded, and it is captured only between "マイク開始" (start) and "マイク停止" (stop). Audio files you choose are played in the browser only. Nothing is saved in the browser. The Tweaks panel posts its display settings (colors, sizes, sensitivity) to the parent page, which reaches another page only when this page is embedded; messages from other pages (an embedding page or the page that opened this one) can only open or close the panel. The local development server (`start.bat`, `npm run dev`) listens on 127.0.0.1 only; do not change `server.host` in `vite.config.js`. Dependencies are pinned in `package-lock.json`, installed with `npm ci` and checked with `npm audit` on every build; the build job is read-only and only the deploy job may publish to GitHub Pages, with actions pinned by commit SHA. `tools/slice_character_sheets.py` runs `ffmpeg` and `ffprobe` locally without a shell and makes no network connections.
