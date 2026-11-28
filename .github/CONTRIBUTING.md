@@ -20,7 +20,7 @@
 - 画面や動きを変えたら、`npm run dev` で `talk.html`・`guruguru.html` を開いて確かめる（マイク・音声ファイル・マウス追従・まばたき）。
 - 依存パッケージを変えたら、`package.json` と `package-lock.json` の両方を送る。
 - **開発用サーバーの待ち受け先（`vite.config.js` の `server.host: '127.0.0.1'`）は変えない。** 変えると、同じネットワークのほかの機器から届くようになります。
-- 外のサイトからの読み込みを増やさない（今は Google Fonts だけです）。
+- 外のサイトからの読み込みを足さない（今は何も読み込んでいません。フォントも自分で配っています）。
 
 ## 画像・音声について
 
@@ -53,7 +53,7 @@ Before sending:
 - If you changed the UI or behaviour, open `talk.html` and `guruguru.html` with `npm run dev` and try the microphone, an audio file, mouse following and blinking.
 - If you changed dependencies, send both `package.json` and `package-lock.json`.
 - **Do not change where the development server listens (`server.host: '127.0.0.1'` in `vite.config.js`).** Otherwise other devices on the same network can reach it.
-- Do not add loads from other sites (Google Fonts is the only one).
+- Do not add loads from other sites (there are none; even the font is served from this site).
 
 ### Images and audio
 
