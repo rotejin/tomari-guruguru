@@ -150,5 +150,176 @@ class MainArgumentsTest(unittest.TestCase):
         self.assertFalse(any(out.exists() for out in self.outs))
 
 
+# ── 速くした走査が、前と同じ結果になるか ─────────────────────────────────────
+# 前（画素ごとに Python で見ていた時）の実装を、そのまま写して比べる。
+
+def _old_alpha_runs_for_row(data, width, y, alpha_threshold, remove_gray_residue,
+                            gray_alpha_max, gray_min, gray_max, gray_delta):
+    row_start = y * width * 4
+    runs = []
+
+    def is_foreground(x_pos):
+        idx = row_start + x_pos * 4
+        alpha = data[idx + 3]
+        if alpha <= alpha_threshold:
+            return False
+        if remove_gray_residue and alpha <= gray_alpha_max:
+            r, g, b = data[idx], data[idx + 1], data[idx + 2]
+            if max(r, g, b) - min(r, g, b) <= gray_delta and gray_min <= (r + g + b) // 3 <= gray_max:
+                return False
+        return True
+
+    x = 0
+    while x < width:
+        while x < width and not is_foreground(x):
+            x += 1
+        if x >= width:
+            break
+        start = x
+        while x < width and is_foreground(x):
+            x += 1
+        runs.append((start, x - 1))
+    return runs
+
+
+def _old_cell_bbox(data, sheet_w, row, col, cell, alpha_threshold, y_start, y_end):
+    x0, y0 = col * cell, row * cell
+    min_x = min_y = cell
+    max_x = max_y = -1
+    for y in range(y_start, y_end + 1):
+        base = ((y0 + y) * sheet_w + x0) * 4
+        for x in range(cell):
+            if data[base + x * 4 + 3] > alpha_threshold:
+                min_x, min_y = min(min_x, x), min(min_y, y)
+                max_x, max_y = max(max_x, x), max(max_y, y)
+    if max_x < 0:
+        raise ValueError(f"empty cell row={row} col={col}")
+    return min_x, min_y, max_x, max_y
+
+
+def _old_active_row_range(data, sheet_w, row, col, cell, alpha_threshold, row_threshold, row_margin):
+    x0, y0 = col * cell, row * cell
+    counts = []
+    for y in range(cell):
+        base = ((y0 + y) * sheet_w + x0) * 4
+        counts.append(sum(1 for x in range(cell) if data[base + x * 4 + 3] > alpha_threshold))
+    clusters, start, total = [], None, 0
+    for i, count in enumerate(counts):
+        if count >= row_threshold:
+            if start is None:
+                start, total = i, 0
+            total += count
+        elif start is not None:
+            clusters.append((start, i - 1, total))
+            start, total = None, 0
+    if start is not None:
+        clusters.append((start, cell - 1, total))
+    if not clusters:
+        non_empty = [i for i, count in enumerate(counts) if count > 0]
+        if not non_empty:
+            raise ValueError(f"empty cell row={row} col={col}")
+        return max(0, non_empty[0] - row_margin), min(cell - 1, non_empty[-1] + row_margin)
+    y_start, y_end, _ = max(clusters, key=lambda item: item[2])
+    return max(0, y_start - row_margin), min(cell - 1, y_end + row_margin)
+
+
+def _old_compose_cell(data, sheet_w, row, col, cell, canvas_size, anchor_x, anchor_y,
+                      alpha_threshold, row_threshold, row_margin):
+    active_y0, active_y1 = _old_active_row_range(
+        data, sheet_w, row, col, cell, alpha_threshold, row_threshold, row_margin)
+    min_x, _min_y, max_x, max_y = _old_cell_bbox(
+        data, sheet_w, row, col, cell, alpha_threshold, active_y0, active_y1)
+    dst_x = round(anchor_x - (min_x + max_x) / 2)
+    dst_y = anchor_y - max_y
+    canvas = bytearray(canvas_size * canvas_size * 4)
+    src_x0, src_y0 = col * cell, row * cell
+    copy_x0 = max(0, -dst_x)
+    copy_y0 = max(active_y0, -dst_y)
+    copy_x1 = min(cell, canvas_size - dst_x)
+    copy_y1 = min(active_y1 + 1, canvas_size - dst_y)
+    for y in range(copy_y0, copy_y1):
+        src_base = ((src_y0 + y) * sheet_w + src_x0 + copy_x0) * 4
+        dst_base = ((dst_y + y) * canvas_size + dst_x + copy_x0) * 4
+        for x in range(copy_x0, copy_x1):
+            src_i = src_base + (x - copy_x0) * 4
+            if data[src_i + 3] > alpha_threshold:
+                dst_i = dst_base + (x - copy_x0) * 4
+                canvas[dst_i: dst_i + 4] = data[src_i: src_i + 4]
+    return bytes(canvas), (dst_x, dst_y)
+
+
+def _random_rgba(rng, n_pixels):
+    """透明・不透明・半透明の灰色・半透明の色が混ざった画素を作る。"""
+    out = bytearray()
+    for _ in range(n_pixels):
+        kind = rng.random()
+        if kind < 0.35:
+            out += bytes((rng.randrange(256), rng.randrange(256), rng.randrange(256), 0))
+        elif kind < 0.6:
+            out += bytes((rng.randrange(256), rng.randrange(256), rng.randrange(256), 255))
+        elif kind < 0.85:
+            v = rng.randrange(70, 225)
+            out += bytes((v, min(255, v + rng.randrange(0, 20)), v, rng.randrange(1, 255)))
+        else:
+            out += bytes((rng.randrange(256), rng.randrange(256), rng.randrange(256), rng.randrange(1, 255)))
+    return bytes(out)
+
+
+def _outcome(fn, *args):
+    try:
+        return fn(*args)
+    except ValueError as exc:
+        return ("ValueError", str(exc))
+
+
+class FastScanTest(unittest.TestCase):
+    """画素の走査を速くした（bytes.translate と find）物が、前と同じ結果になる。"""
+
+    def test_row_runs_are_the_same_as_before(self) -> None:
+        import random
+        rng = random.Random(20261128)
+        width, height = 97, 40
+        data = _random_rgba(rng, width * height)
+        settings = [
+            (64, True, 220, 90, 205, 14),   # 既定
+            (64, False, 220, 90, 205, 14),  # --no-remove-gray-residue
+            (0, True, 254, 0, 255, 255),    # 端の値
+            (200, True, 150, 90, 205, 14),  # gray_alpha_max がしきい値より小さい
+            (32, True, 255, 50, 230, 30),
+        ]
+        for setting in settings:
+            for y in range(height):
+                with self.subTest(setting=setting, y=y):
+                    self.assertEqual(slicer.alpha_runs_for_row(data, width, y, *setting),
+                                     _old_alpha_runs_for_row(data, width, y, *setting))
+
+    def test_grid_cell_helpers_are_the_same_as_before(self) -> None:
+        import random
+        rng = random.Random(7)
+        cell = 13
+        sheet_w = cell * 5
+        # ところどころ空のセルも作る
+        data = bytearray(_random_rgba(rng, sheet_w * sheet_w))
+        for y in range(cell, 2 * cell):
+            for x in range(cell, 2 * cell):
+                data[(y * sheet_w + x) * 4 + 3] = 0
+        data = bytes(data)
+        for threshold in (0, 64, 200, 254):
+            for row, col in ((0, 0), (1, 1), (2, 3), (4, 4)):
+                with self.subTest(threshold=threshold, cell=(row, col)):
+                    for y_range in ((0, cell - 1), (3, 7)):
+                        self.assertEqual(
+                            _outcome(slicer.cell_bbox, data, sheet_w, row, col, cell, threshold, *y_range),
+                            _outcome(_old_cell_bbox, data, sheet_w, row, col, cell, threshold, *y_range))
+                    for row_threshold, margin in ((2, 1), (9, 0), (14, 3)):
+                        self.assertEqual(
+                            _outcome(slicer.active_row_range, data, sheet_w, row, col, cell, threshold, row_threshold, margin),
+                            _outcome(_old_active_row_range, data, sheet_w, row, col, cell, threshold, row_threshold, margin))
+                    for canvas, ax, ay in ((20, 10, 15), (8, 4, 6), (20, -3, 30), (20, 25, -2)):
+                        self.assertEqual(
+                            _outcome(slicer.compose_cell, data, sheet_w, row, col, cell, canvas, ax, ay, threshold, 2, 1),
+                            _outcome(_old_compose_cell, data, sheet_w, row, col, cell, canvas, ax, ay, threshold, 2, 1))
+
+
 if __name__ == "__main__":
     unittest.main()
