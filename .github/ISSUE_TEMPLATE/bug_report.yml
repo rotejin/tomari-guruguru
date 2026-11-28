@@ -1,0 +1,99 @@
+name: 不具合の報告 / Bug report
+description: 起動しない、表示されない、マウスに追従しない、口が動かない / It does not start or behaves wrongly
+title: "[不具合]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        報告ありがとうございます。Issue は誰でも見られます。個人情報や、使ってよいか分からない画像は貼らないでください。
+        Thanks for the report. Issues are public: please remove personal information and images you may not share.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 何が起きたか / What happened
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現の手順 / Steps to reproduce
+      placeholder: |
+        1. start.bat をダブルクリック
+        2. talk.html で「マイク開始」を押す
+        3. 話しても口が動かない
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待した動き / Expected behavior
+    validations:
+      required: false
+
+  - type: dropdown
+    id: page
+    attributes:
+      label: どのページか / Page
+      options:
+        - トマリトーク（talk.html） / Talk
+        - トマリぐるぐる（guruguru.html） / Guruguru
+        - 調整パネル（Tweaks） / Tweaks panel
+        - 起動・インストール（start.bat・npm） / Starting and installing
+        - 自分のキャラの作り方（tools・docs） / Making your own character
+        - ドキュメント / Documentation
+        - その他 / Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: how
+    attributes:
+      label: 開き方 / How you opened it
+      options:
+        - 公開ページ（GitHub Pages） / GitHub Pages
+        - start.bat
+        - npm run dev
+        - npm run preview
+        - OBS
+        - その他 / Other
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS / Operating system
+      placeholder: Windows 11 24H2
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: ブラウザとバージョン / Browser and version
+      description: Chrome は、右上の ︙ → ヘルプ → Google Chrome について / In Chrome, ⋮ → Help → About Google Chrome
+      placeholder: Chrome 158
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node.js のバージョン（手元で起動した場合） / Node.js version (if run locally)
+      description: node --version
+      placeholder: v22.12.0
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 表示されたメッセージ・スクリーンショット / Messages and screenshots
+      description: ブラウザのコンソール（F12）のエラーや、ターミナルに出た文字があれば貼ってください / Errors in the browser console (F12) or text in the terminal
+    validations:
+      required: false

@@ -40,6 +40,7 @@ http://127.0.0.1:5173/guruguru.html
 注意:
 
 - マイク入力は `localhost` または HTTPS でのみ利用できます。
+- 開発用サーバーは、この PC の中（`127.0.0.1`）からだけ開けます。同じネットワークのほかの機器からは開けません（安全のため。詳しくは [SECURITY.md](.github/SECURITY.md)）。
 - Google Fonts はCDNから読み込むため、初回表示にはネット接続が必要です。
 
 ## ビルド
@@ -83,11 +84,15 @@ http://127.0.0.1:4173/tomari-guruguru/guruguru.html
 │   └── 新キャラ差し替え手順.md
 ├── tools/
 │   └── slice_character_sheets.py
+├── scripts/
+│   └── verify-pages-build.mjs  # 公開用のビルドの検査
+├── .github/                # 公開のワークフロー・案内文書・テンプレート
 ├── sheets/                 # 元シート画像 (Git非追跡)
 ├── uploads/                # 元アップロード画像 (Git非追跡)
 ├── 新キャラ資料/            # 新キャラ素材 (Git非追跡)
 ├── LICENSE
 ├── ASSET_LICENSE.md
+├── CHANGELOG.md
 └── README.md
 ```
 
@@ -190,6 +195,15 @@ F_目閉じ_口開け.png
 5. `tools/slice_character_sheets.py` でスライス画像を生成
 
 詳しい注意点や検証方法は `docs/新キャラ差し替え手順.md` を参照してください。
+
+---
+
+## サポート・開発への参加
+
+- 質問・不具合の報告: [サポートの案内](.github/SUPPORT.md)
+- 脆弱性の報告: [セキュリティポリシー](.github/SECURITY.md)
+- 開発への参加: [CONTRIBUTING](.github/CONTRIBUTING.md)
+- 変更の記録: [CHANGELOG.md](CHANGELOG.md)
 
 ---
 

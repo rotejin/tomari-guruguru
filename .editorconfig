@@ -1,0 +1,26 @@
+# Editor settings that match .gitattributes and the existing files.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+insert_final_newline = true
+
+[*.{js,jsx,mjs,json,yml,yaml,html,css}]
+indent_size = 2
+
+[*.py]
+indent_size = 4
+
+[*.bat]
+end_of_line = crlf
+
+[*.md]
+# Two trailing spaces can be a line break in Markdown.
+trim_trailing_whitespace = false
+
+# Written by npm: leave it exactly as it is.
+[package-lock.json]
+indent_style = unset
+indent_size = unset
