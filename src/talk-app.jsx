@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import charConfig from './character-config';
 import { makeAudioEngine, micErrorMessage } from './audio-engine.js';
+import { useTweaks, TweaksPanel, TweakSection, TweakSlider, TweakToggle, TweakColor } from './tweaks-panel.jsx';
 
 const { useState, useEffect, useRef, useMemo } = React;
 

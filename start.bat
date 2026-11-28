@@ -38,7 +38,7 @@ if not exist node_modules (
 echo Starting Tomari dev server...
 echo Close the server window to stop the app.
 
-start "Tomari dev server" /D "%~dp0" cmd /k "npx vite"
+start "Tomari dev server" /D "%~dp0" cmd /k "npm run dev"
 
 popd
 endlocal
