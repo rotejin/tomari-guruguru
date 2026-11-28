@@ -46,6 +46,7 @@ function App() {
 
   const charRef = useRef(null);
   const audioElRef = useRef(null);
+  const fileUrlRef = useRef(null); // 今、再生バーに渡している音声ファイルの URL
   const meterRef = useRef(null);
   const engine = useMemo(() => makeAudioEngine(), []);
   const target = useRef({ x: 0, y: 0 });
@@ -167,7 +168,10 @@ function App() {
     const el = audioElRef.current;
     engine.attachAudioEl(el);
     engine.resume();
-    el.src = URL.createObjectURL(f);
+    // 前に選んだファイルの URL は、もう使わないので放す（残すと、閉じるまでメモリに残る）
+    const prevUrl = fileUrlRef.current;
+    el.src = fileUrlRef.current = URL.createObjectURL(f);
+    if (prevUrl) URL.revokeObjectURL(prevUrl);
     el.play().catch(() => {});
     setFileName(f.name);
   }
@@ -214,63 +218,68 @@ function App() {
         <div style={{ fontSize: 'clamp(12px, 1.6vmin, 16px)', color: subColor, marginTop: 4, letterSpacing: '0.08em' }}>音声に合わせて口パク・まばたきするよ</div>
       </div>
 
+      {/* 下の中央に、上から エラーの文・音声ファイルの再生バー・操作バー の順に積む。
+          （再生バーを右下に置くと、右下の Tweaks のボタン・パネルと重なっていた） */}
       <div style={{
         position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
-        display: 'flex', alignItems: 'center', gap: 14,
-        background: panelBg, backdropFilter: 'blur(10px)',
-        border: `1px solid ${lineColor}`, borderRadius: 18,
-        padding: '12px 18px', cursor: 'default',
-        boxShadow: '0 6px 24px rgba(60,48,38,0.10)'
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10
       }}>
-        <button onClick={toggleMic} disabled={micPending} aria-busy={micPending} style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
-          color: micOn ? '#fff' : inkColor,
-          background: micOn ? '#D96C4F' : 'transparent',
-          border: `1.5px solid ${micOn ? '#D96C4F' : lineColor}`,
-          borderRadius: 12, padding: '9px 16px', cursor: micPending ? 'wait' : 'pointer',
-          minHeight: 44, opacity: micPending ? 0.6 : 1
+        {micErr ? (
+          <div style={{ color: '#B3261E', fontSize: 13, fontWeight: 700 }}>{micErr}</div>
+        ) : null}
+        <audio ref={audioElRef} controls style={{
+          width: 260, display: fileName ? 'block' : 'none', cursor: 'default'
+        }}></audio>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 14,
+          background: panelBg, backdropFilter: 'blur(10px)',
+          border: `1px solid ${lineColor}`, borderRadius: 18,
+          padding: '12px 18px', cursor: 'default',
+          boxShadow: '0 6px 24px rgba(60,48,38,0.10)'
         }}>
-          <span style={{
-            width: 9, height: 9, borderRadius: '50%',
-            background: micOn ? '#fff' : '#D96C4F',
-            animation: micOn ? 'pulse 1.2s ease-in-out infinite' : 'none'
-          }}></span>
-          {micOn ? 'マイク停止' : 'マイク開始'}
-        </button>
+          <button onClick={toggleMic} disabled={micPending} aria-busy={micPending} style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
+            color: micOn ? '#fff' : inkColor,
+            background: micOn ? '#D96C4F' : 'transparent',
+            border: `1.5px solid ${micOn ? '#D96C4F' : lineColor}`,
+            borderRadius: 12, padding: '9px 16px', cursor: micPending ? 'wait' : 'pointer',
+            minHeight: 44, opacity: micPending ? 0.6 : 1
+          }}>
+            <span style={{
+              width: 9, height: 9, borderRadius: '50%',
+              background: micOn ? '#fff' : '#D96C4F',
+              animation: micOn ? 'pulse 1.2s ease-in-out infinite' : 'none'
+            }}></span>
+            {micOn ? 'マイク停止' : 'マイク開始'}
+          </button>
 
-        <label style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          fontWeight: 700, fontSize: 14, color: inkColor,
-          border: `1.5px solid ${lineColor}`, borderRadius: 12,
-          padding: '9px 16px', cursor: 'pointer', minHeight: 44, boxSizing: 'border-box'
-        }}>
-          ♪ 音声ファイル
-          <input type="file" accept="audio/*" onChange={onFilePick} style={{ display: 'none' }}></input>
-        </label>
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            fontWeight: 700, fontSize: 14, color: inkColor,
+            border: `1.5px solid ${lineColor}`, borderRadius: 12,
+            padding: '9px 16px', cursor: 'pointer', minHeight: 44, boxSizing: 'border-box'
+          }}>
+            ♪ 音声ファイル
+            <input type="file" accept="audio/*" onChange={onFilePick} style={{ display: 'none' }}></input>
+          </label>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 150 }}>
-          <div style={{ fontSize: 11, color: subColor, letterSpacing: '0.06em', display: 'flex', justifyContent: 'space-between' }}>
-            <span>音量</span>
-            <span>{['とじ', 'はんびらき', 'ぜんかい'][mouth]}</span>
-          </div>
-          <div style={{ position: 'relative', height: 10, borderRadius: 5, background: lineColor, overflow: 'hidden' }}>
-            <div ref={meterRef} style={{
-              position: 'absolute', left: 0, top: 0, bottom: 0, width: '0%',
-              borderRadius: 5, background: 'linear-gradient(90deg, #8FBC8F, #E8B04B, #D96C4F)'
-            }}></div>
-            <div style={{ position: 'absolute', top: 0, bottom: 0, width: 2, background: inkColor, opacity: 0.5, left: `${clamp(t.thHalf / 0.4, 0, 1) * 100}%` }}></div>
-            <div style={{ position: 'absolute', top: 0, bottom: 0, width: 2, background: inkColor, opacity: 0.5, left: `${clamp(t.thFull / 0.4, 0, 1) * 100}%` }}></div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 150 }}>
+            <div style={{ fontSize: 11, color: subColor, letterSpacing: '0.06em', display: 'flex', justifyContent: 'space-between' }}>
+              <span>音量</span>
+              <span>{['とじ', 'はんびらき', 'ぜんかい'][mouth]}</span>
+            </div>
+            <div style={{ position: 'relative', height: 10, borderRadius: 5, background: lineColor, overflow: 'hidden' }}>
+              <div ref={meterRef} style={{
+                position: 'absolute', left: 0, top: 0, bottom: 0, width: '0%',
+                borderRadius: 5, background: 'linear-gradient(90deg, #8FBC8F, #E8B04B, #D96C4F)'
+              }}></div>
+              <div style={{ position: 'absolute', top: 0, bottom: 0, width: 2, background: inkColor, opacity: 0.5, left: `${clamp(t.thHalf / 0.4, 0, 1) * 100}%` }}></div>
+              <div style={{ position: 'absolute', top: 0, bottom: 0, width: 2, background: inkColor, opacity: 0.5, left: `${clamp(t.thFull / 0.4, 0, 1) * 100}%` }}></div>
+            </div>
           </div>
         </div>
       </div>
-      {micErr ? (
-        <div style={{ position: 'absolute', bottom: 92, left: '50%', transform: 'translateX(-50%)', color: '#B3261E', fontSize: 13, fontWeight: 700 }}>{micErr}</div>
-      ) : null}
-      <audio ref={audioElRef} controls style={{
-        position: 'absolute', bottom: 20, right: 20, width: 260,
-        display: fileName ? 'block' : 'none', cursor: 'default'
-      }}></audio>
 
       <a href="guruguru.html" style={{
         position: 'absolute', top: 18, left: 18, fontSize: 13, fontWeight: 700,
