@@ -2,7 +2,28 @@
 // ブラウザの API（getUserMedia・AudioContext）は、呼ばれた時に読む。
 // そのため、tests/ から偽物に差し替えて動かせる。
 
-export function makeAudioEngine() {
+// マイクを始められなかった時に、画面に出す文（エラーの種類ごと）
+export function micErrorMessage(e) {
+  switch (e && e.name) {
+    case 'NotAllowedError':
+    case 'SecurityError':
+      return 'マイクの使用が許可されていません（アドレスバーの左のボタンから、マイクを許可してください）';
+    case 'NotFoundError':
+    case 'OverconstrainedError':
+      return 'マイクが見つかりません（つながっているか、OS の設定で使えるようになっているか確かめてください）';
+    case 'NotReadableError':
+    case 'AbortError':
+      return 'マイクを開けません（ほかのアプリが使っていないか確かめてください）';
+    case 'NotSupportedError':
+      return 'このページではマイクを使えません（https か 127.0.0.1 で開いてください）';
+    default:
+      return 'マイクを使用できません（権限と、マイクのつながりを確かめてください）';
+  }
+}
+
+// onMicEnded: 動いているマイクが、ブラウザや OS の側で切れた時（抜いた・ほかのアプリに取られた・
+// 権限を取り消した など）に呼ぶ。その時、エンジンの側ではもうマイクを止めてある。
+export function makeAudioEngine({ onMicEnded } = {}) {
   const st = {
     ctx: null, micAnalyser: null, micStream: null, micSource: null,
     fileAnalyser: null, fileSourceMade: false, buf: null,
@@ -25,11 +46,15 @@ export function makeAudioEngine() {
   function stopTracks(stream) {
     if (stream) stream.getTracks().forEach((t) => t.stop());
   }
-  return {
+  const api = {
     // マイクを始める。始めたら true、もう動いている・始めている途中・途中で止められた時は false。
     // （許可を待つ間に押し直すと 2 本目のマイクを取り、1 本目が止められなくなっていた）
     async startMic() {
       if (st.micStream || st.micStarting) return false;
+      // https でも 127.0.0.1 でもないページでは、navigator.mediaDevices が無い
+      if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+        throw new DOMException('getUserMedia is not available on this page', 'NotSupportedError');
+      }
       st.micStarting = true;
       const generation = ++st.micGeneration;
       const cancelled = () => generation !== st.micGeneration;
@@ -53,6 +78,15 @@ export function makeAudioEngine() {
         st.micStream = stream;
         st.micSource = src;
         st.micAnalyser = an;
+        // マイクが向こうの都合で切れたら、止めて知らせる（そのままだと「マイク停止」の表示が残る）。
+        // stop() で止めた時は ended は起きない決まりだが、念のため、今のマイクの時だけ扱う。
+        for (const track of stream.getTracks()) {
+          track.addEventListener('ended', () => {
+            if (st.micStream !== stream) return;
+            api.stopMic();
+            if (onMicEnded) onMicEnded();
+          }, { once: true });
+        }
         return true;
       } catch (e) {
         // 取ったマイクは止める（許可の後の準備で失敗しても、マイクを残さない）
@@ -86,8 +120,12 @@ export function makeAudioEngine() {
       st.fileAnalyser = an;
       st.fileSourceMade = true;
     },
-    resume() { if (st.ctx) st.ctx.resume(); },
+    resume() {
+      // 失敗しても（閉じた後など）、音が出ないだけで続ける。受け止めないと、未処理の失敗になる
+      if (st.ctx) st.ctx.resume().catch(() => {});
+    },
     level() { return Math.max(levelOf(st.micAnalyser), levelOf(st.fileAnalyser)); },
     micOn() { return !!st.micAnalyser; }
   };
+  return api;
 }
