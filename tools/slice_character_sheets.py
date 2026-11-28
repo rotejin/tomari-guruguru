@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import os
 import re
 import shutil
@@ -172,6 +173,31 @@ class Component:
         return ((self.min_x + self.max_x) / 2, (self.min_y + self.max_y) / 2)
 
 
+@functools.lru_cache(maxsize=None)
+def _over_table(threshold: int) -> bytes:
+    """bytes.translate の表: alpha > threshold なら 1、ほかは 0。"""
+    return bytes(1 if value > threshold else 0 for value in range(256))
+
+
+@functools.lru_cache(maxsize=None)
+def _band_table(low: int, high: int) -> bytes:
+    """bytes.translate の表: low < alpha <= high なら 1、ほかは 0。"""
+    return bytes(1 if low < value <= high else 0 for value in range(256))
+
+
+def _runs_of_ones(mask: bytes | bytearray, offset: int = 0) -> list[tuple[int, int]]:
+    """0/1 の並びから、1 が続く区間（両端を含む）を返す。offset を足した位置で返す。"""
+    runs: list[tuple[int, int]] = []
+    x = mask.find(1)
+    while x >= 0:
+        end = mask.find(0, x)
+        if end < 0:
+            end = len(mask)
+        runs.append((offset + x, offset + end - 1))
+        x = mask.find(1, end)
+    return runs
+
+
 def alpha_runs_for_row(
     data: bytes,
     width: int,
@@ -183,15 +209,22 @@ def alpha_runs_for_row(
     gray_max: int,
     gray_delta: int,
 ) -> list[tuple[int, int]]:
-    row_start = y * width * 4
-    runs: list[tuple[int, int]] = []
+    """1 行の中で、前景の画素が続く区間を返す。
 
-    def is_foreground(x_pos: int) -> bool:
-        idx = row_start + x_pos * 4
-        alpha = data[idx + 3]
-        if alpha <= alpha_threshold:
-            return False
-        if remove_gray_residue and alpha <= gray_alpha_max:
+    前景: alpha が alpha_threshold より大きい画素。ただし remove_gray_residue の時は、
+    半透明（alpha <= gray_alpha_max）で色の差の小さい灰色の画素を、背景のゴミとして除く。
+    画素ごとに Python の関数を呼ぶと 1 シートで 2,000 万回になり遅かったので、alpha を
+    行ごとにまとめて取り出して、bytes.translate と find で数える（判定は前と同じ）。
+    """
+    row_start = y * width * 4
+    alpha = data[row_start + 3 : row_start + width * 4 : 4]
+    mask = bytearray(alpha.translate(_over_table(alpha_threshold)))
+    if remove_gray_residue and gray_alpha_max > alpha_threshold:
+        # 灰色のゴミかどうかは、半透明の画素（輪郭のまわりなど）だけを見ればよい
+        band = alpha.translate(_band_table(alpha_threshold, gray_alpha_max))
+        x = band.find(1)
+        while x >= 0:
+            idx = row_start + x * 4
             r = data[idx]
             g = data[idx + 1]
             b = data[idx + 2]
@@ -199,21 +232,9 @@ def alpha_runs_for_row(
             mn = min(r, g, b)
             mean = (r + g + b) // 3
             if mx - mn <= gray_delta and gray_min <= mean <= gray_max:
-                return False
-        return True
-
-    x = 0
-    while x < width:
-        while x < width and not is_foreground(x):
-            x += 1
-        if x >= width:
-            break
-        start = x
-        while x < width and is_foreground(x):
-            x += 1
-        runs.append((start, x - 1))
-    return runs
-
+                mask[x] = 0
+            x = band.find(1, x + 1)
+    return _runs_of_ones(mask)
 
 def components_from_sheet(
     data: bytes,
@@ -353,18 +374,22 @@ def cell_bbox(
     min_y = cell
     max_x = -1
     max_y = -1
+    table = _over_table(alpha_threshold)
     for y in range(y_start, y_end + 1):
         base = ((y0 + y) * sheet_w + x0) * 4
-        for x in range(cell):
-            if data[base + x * 4 + 3] > alpha_threshold:
-                if x < min_x:
-                    min_x = x
-                if y < min_y:
-                    min_y = y
-                if x > max_x:
-                    max_x = x
-                if y > max_y:
-                    max_y = y
+        mask = data[base + 3 : base + cell * 4 : 4].translate(table)
+        first = mask.find(1)
+        if first < 0:
+            continue
+        last = mask.rfind(1)
+        if first < min_x:
+            min_x = first
+        if last > max_x:
+            max_x = last
+        if y < min_y:
+            min_y = y
+        if y > max_y:
+            max_y = y
     if max_x < 0:
         raise ValueError(f"empty cell row={row} col={col}")
     return min_x, min_y, max_x, max_y
@@ -391,13 +416,10 @@ def active_row_range(
     x0 = col * cell
     y0 = row * cell
     counts: list[int] = []
+    table = _over_table(alpha_threshold)
     for y in range(cell):
         base = ((y0 + y) * sheet_w + x0) * 4
-        count = 0
-        for x in range(cell):
-            if data[base + x * 4 + 3] > alpha_threshold:
-                count += 1
-        counts.append(count)
+        counts.append(data[base + 3 : base + cell * 4 : 4].translate(table).count(1))
 
     clusters: list[tuple[int, int, int]] = []
     start: int | None = None
@@ -465,14 +487,18 @@ def compose_cell(
     copy_x1 = min(cell, canvas_size - dst_x)
     copy_y1 = min(active_y1 + 1, canvas_size - dst_y)
 
+    table = _over_table(alpha_threshold)
+    copy_w = copy_x1 - copy_x0
     for y in range(copy_y0, copy_y1):
+        if copy_w <= 0:
+            break
         src_base = ((src_y0 + y) * sheet_w + src_x0 + copy_x0) * 4
         dst_base = ((dst_y + y) * canvas_size + dst_x + copy_x0) * 4
-        for x in range(copy_x0, copy_x1):
-            src_i = src_base + (x - copy_x0) * 4
-            if data[src_i + 3] > alpha_threshold:
-                dst_i = dst_base + (x - copy_x0) * 4
-                canvas[dst_i : dst_i + 4] = data[src_i : src_i + 4]
+        # alpha_threshold より濃い画素だけを、続いている区間ごとにまとめて写す
+        mask = data[src_base + 3 : src_base + copy_w * 4 : 4].translate(table)
+        for run_x0, run_x1 in _runs_of_ones(mask):
+            n = (run_x1 - run_x0 + 1) * 4
+            canvas[dst_base + run_x0 * 4 : dst_base + run_x0 * 4 + n] = data[src_base + run_x0 * 4 : src_base + run_x0 * 4 + n]
 
     return bytes(canvas), (dst_x, dst_y)
 
