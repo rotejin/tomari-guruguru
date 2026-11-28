@@ -9,8 +9,12 @@ Notable changes to this repository are recorded here.
 
 - トーク版で、「マイク開始」をマイクの許可を待つ間にもう一度押すと、マイクを 2 本取り、1 本目が「マイク停止」でも止まらず録音が続いていた。今は、許可を待つ間はボタンを無効にし、始めている途中の 2 回目は何もしない。許可の後の準備で失敗した時も、取ったマイクを止める。
 - 音声エンジンを `src/audio-engine.js` に分け、マイクの開始・停止の検査（`npm test`、node だけで動く）を足した。公開のワークフローでも、ビルドの前に走らせる。
+- トーク版で、音声ファイルの再生バーが右下の Tweaks のボタンに重なり、パネルを開くと隠れていた（幅が狭いと、中央の操作バーにも重なっていた）。今は、操作バーのすぐ上の中央に出す。マイクのエラーの文は、その上に出す。
+- トーク版で、音声ファイルを選び直しても、前のファイルの URL を放していなかった（ページを閉じるまでメモリに残っていた）。
 
 In the talk page, pressing "マイク開始" again while the browser was still asking for microphone access opened a second microphone stream, and the first one kept recording even after "マイク停止". The button is now disabled while waiting, a second start is ignored, and a stream is stopped if setting it up fails. The audio engine now lives in `src/audio-engine.js`, with microphone start/stop tests (`npm test`, node only) that also run in the Pages workflow before the build.
+
+In the talk page, the audio file player sat in the bottom-right corner under the Tweaks button and was hidden when the panel was open (and on narrow windows it also covered the control bar). It is now centered just above the control bar, with the microphone error message above it. Choosing another audio file now releases the object URL of the previous one.
 
 ## v1.0.0 - 2026-11-28
 
