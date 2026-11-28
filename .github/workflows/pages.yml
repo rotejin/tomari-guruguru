@@ -41,6 +41,10 @@ jobs:
       - name: Known vulnerabilities in the dependencies
         run: npm audit
 
+      # Starting and stopping the microphone, with a fake getUserMedia and AudioContext.
+      - name: Tests
+        run: npm test
+
       - name: Build
         run: npm run build
 
