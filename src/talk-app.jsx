@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import charConfig from './character-config';
-import { makeAudioEngine } from './audio-engine.js';
+import { makeAudioEngine, micErrorMessage } from './audio-engine.js';
 
 const { useState, useEffect, useRef, useMemo } = React;
 
@@ -33,6 +33,8 @@ const SRC = (sheet, r, c) => charConfig.src(sheet, r, c);
 const BG_OPTIONS = ['#FFF8EE', '#FDEFEF', '#EEF4FB', '#2B2926', '#00FF00'];
 
 function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
+// しきい値の刻み（0.005）で足し引きした時の、小数の誤差を消す
+const round3 = (v) => Math.round(v * 1000) / 1000;
 
 function App() {
   const [t, setTweak] = useTweaks(TALK_DEFAULTS);
@@ -48,8 +50,15 @@ function App() {
   const charRef = useRef(null);
   const audioElRef = useRef(null);
   const fileUrlRef = useRef(null); // 今、再生バーに渡している音声ファイルの URL
+  const fileInputRef = useRef(null);
   const meterRef = useRef(null);
-  const engine = useMemo(() => makeAudioEngine(), []);
+  const engine = useMemo(() => makeAudioEngine({
+    // マイクが向こうの都合で切れたら（抜いた・ほかのアプリに取られた など）、「マイク開始」に戻す
+    onMicEnded: () => {
+      setMicOn(false);
+      setMicErr('マイクが切れました（抜けた・ほかのアプリに取られた など）。もう一度「マイク開始」を押してください');
+    },
+  }), []);
   const target = useRef({ x: 0, y: 0 });
   const current = useRef({ x: 0, y: 0 });
   const env = useRef(0);
@@ -156,7 +165,9 @@ function App() {
       // 本当に始まった時だけ「マイク停止」にする
       if (await engine.startMic()) setMicOn(true);
     } catch (e) {
-      setMicErr('マイクを使用できません（権限を確認してください）');
+      // 原因を追えるよう、コンソールにも出す（SUPPORT.md は、コンソールのエラーを頼んでいる）
+      console.error('[トマリトーク] マイクを始められませんでした:', e);
+      setMicErr(micErrorMessage(e));
     } finally {
       micBusyRef.current = false;
       setMicPending(false);
@@ -175,6 +186,8 @@ function App() {
     if (prevUrl) URL.revokeObjectURL(prevUrl);
     el.play().catch(() => {});
     setFileName(f.name);
+    // 選んだ物を空にしておく（同じファイルをもう一度選んでも、読み込み直せるように）
+    e.target.value = '';
   }
 
   const allFrames = useMemo(() => {
@@ -226,9 +239,11 @@ function App() {
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10
       }}>
         {micErr ? (
-          <div style={{ color: '#B3261E', fontSize: 13, fontWeight: 700 }}>{micErr}</div>
+          // 暗い背景では、明るい赤にする（#B3261E のままだとコントラスト比が 2.2:1 で読みにくい）
+          <div role="alert" style={{ color: dark ? '#FF8A80' : '#B3261E', fontSize: 13, fontWeight: 700 }}>{micErr}</div>
         ) : null}
-        <audio ref={audioElRef} controls style={{
+        {/* 再生バーから再生した時も、音の処理（AudioContext）を動かす（止まっていると、音も口パクも出ない） */}
+        <audio ref={audioElRef} controls onPlay={() => engine.resume()} style={{
           width: 260, display: fileName ? 'block' : 'none', cursor: 'default'
         }}></audio>
         <div style={{
@@ -255,15 +270,17 @@ function App() {
             {micOn ? 'マイク停止' : 'マイク開始'}
           </button>
 
-          <label style={{
+          {/* ボタンにして、キーボード（Tab・Enter・Space）でも選べるようにする（前は label で、Tab で届かなかった） */}
+          <button type="button" onClick={() => fileInputRef.current && fileInputRef.current.click()} style={{
             display: 'flex', alignItems: 'center', gap: 8,
-            fontWeight: 700, fontSize: 14, color: inkColor,
+            fontFamily: 'inherit', fontWeight: 700, fontSize: 14, color: inkColor,
+            background: 'transparent',
             border: `1.5px solid ${lineColor}`, borderRadius: 12,
             padding: '9px 16px', cursor: 'pointer', minHeight: 44, boxSizing: 'border-box'
           }}>
             ♪ 音声ファイル
-            <input type="file" accept="audio/*" onChange={onFilePick} style={{ display: 'none' }}></input>
-          </label>
+          </button>
+          <input ref={fileInputRef} type="file" accept="audio/*" onChange={onFilePick} style={{ display: 'none' }}></input>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 150 }}>
             <div style={{ fontSize: 11, color: subColor, letterSpacing: '0.06em', display: 'flex', justifyContent: 'space-between' }}>
@@ -291,10 +308,11 @@ function App() {
         <TweakSection label="口パク"></TweakSection>
         <TweakSlider label="マイク感度" value={t.micGain} min={0.3} max={5} step={0.1}
           onChange={(v) => setTweak('micGain', v)}></TweakSlider>
+        {/* はんびらき < ぜんかい を保つ（逆になると、はんびらきの口が一度も出なくなる） */}
         <TweakSlider label="しきい値（はんびらき）" value={t.thHalf} min={0.01} max={0.3} step={0.005}
-          onChange={(v) => setTweak('thHalf', v)}></TweakSlider>
+          onChange={(v) => setTweak(v >= t.thFull ? { thHalf: v, thFull: round3(v + 0.005) } : { thHalf: v })}></TweakSlider>
         <TweakSlider label="しきい値（ぜんかい）" value={t.thFull} min={0.05} max={0.4} step={0.005}
-          onChange={(v) => setTweak('thFull', v)}></TweakSlider>
+          onChange={(v) => setTweak(v <= t.thHalf ? { thFull: v, thHalf: round3(v - 0.005) } : { thFull: v })}></TweakSlider>
         <TweakSlider label="口を閉じる速さ" value={t.release} min={0.03} max={0.4} step={0.01}
           onChange={(v) => setTweak('release', v)}></TweakSlider>
         <TweakToggle label="自動まばたき" value={t.autoBlink}

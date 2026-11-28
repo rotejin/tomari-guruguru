@@ -6,7 +6,7 @@
 // ブラウザのマイク（getUserMedia）と AudioContext を、偽物に差し替えて動かす。
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeAudioEngine } from '../src/audio-engine.js';
+import { makeAudioEngine, micErrorMessage } from '../src/audio-engine.js';
 
 function deferred() {
   let resolve;
@@ -22,9 +22,25 @@ const settle = async () => {
   for (let i = 0; i < 10; i += 1) await new Promise((done) => setImmediate(done));
 };
 
+// 本物の MediaStreamTrack と同じく、stop() では ended を起こさない。
+// 向こうの都合で切れた時（抜いた など）だけ、endByDevice() で ended を起こす。
+class FakeTrack extends EventTarget {
+  constructor() {
+    super();
+    this.readyState = 'live';
+  }
+  stop() {
+    this.readyState = 'ended';
+  }
+  endByDevice() {
+    this.readyState = 'ended';
+    this.dispatchEvent(new Event('ended'));
+  }
+}
+
 class FakeStream {
   constructor() {
-    this.tracks = [{ readyState: 'live', stop() { this.readyState = 'ended'; } }];
+    this.tracks = [new FakeTrack()];
   }
   getTracks() {
     return this.tracks;
@@ -69,6 +85,11 @@ beforeEach(() => {
     createAnalyser() {
       const node = new FakeNode();
       node.fftSize = 2048;
+      return node;
+    }
+    createMediaElementSource(el) {
+      const node = new FakeNode();
+      node.element = el;
       return node;
     }
   }
@@ -189,4 +210,78 @@ test('許可の後の準備（resume）で失敗しても、取ったマイク�
   await assert.rejects(started, /resume failed/);
   assert.equal(stream.live, false);
   assert.equal(engine.micOn(), false);
+});
+
+test('動いているマイクが向こうの都合で切れたら、止めて知らせる（「マイク停止」のまま残さない）', async () => {
+  let ended = 0;
+  const engine = makeAudioEngine({ onMicEnded: () => { ended += 1; } });
+  const started = engine.startMic();
+  const stream = new FakeStream();
+  env.micRequests[0].resolve(stream);
+  assert.equal(await started, true);
+
+  stream.tracks[0].endByDevice();
+  assert.equal(ended, 1);
+  assert.equal(engine.micOn(), false);
+  assert.equal(env.sources[0].disconnected, true);
+
+  // もう一度始められる
+  const again = engine.startMic();
+  env.micRequests[1].resolve(new FakeStream());
+  assert.equal(await again, true);
+});
+
+test('自分で止めた時・前のマイクが後から切れた時は、知らせず、今のマイクも止めない', async () => {
+  let ended = 0;
+  const engine = makeAudioEngine({ onMicEnded: () => { ended += 1; } });
+  const first = engine.startMic();
+  const old = new FakeStream();
+  env.micRequests[0].resolve(old);
+  assert.equal(await first, true);
+  engine.stopMic();
+  assert.equal(ended, 0, '自分で止めた時は知らせない');
+
+  const second = engine.startMic();
+  const fresh = new FakeStream();
+  env.micRequests[1].resolve(fresh);
+  assert.equal(await second, true);
+  old.tracks[0].endByDevice();
+  assert.equal(ended, 0, '前のマイクが切れても知らせない');
+  assert.equal(engine.micOn(), true);
+  assert.equal(fresh.live, true);
+});
+
+test('マイクを使えないページ（navigator.mediaDevices が無い）では、何も始めずに NotSupportedError', async () => {
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {} });
+  const engine = makeAudioEngine();
+  await assert.rejects(engine.startMic(), (e) => e.name === 'NotSupportedError');
+  assert.equal(engine.micOn(), false);
+  assert.match(micErrorMessage(new DOMException('x', 'NotSupportedError')), /https か 127\.0\.0\.1/);
+});
+
+test('マイクのエラーの文は、種類ごとに分ける（何でも「権限」と言わない）', () => {
+  const msg = (name) => micErrorMessage(new DOMException('x', name));
+  assert.match(msg('NotAllowedError'), /許可されていません/);
+  assert.match(msg('NotFoundError'), /見つかりません/);
+  assert.match(msg('NotReadableError'), /ほかのアプリ/);
+  assert.match(micErrorMessage(new Error('?')), /マイクを使用できません/);
+  assert.match(micErrorMessage(undefined), /マイクを使用できません/);
+});
+
+test('resume() が失敗しても、未処理の失敗にしない', async () => {
+  const unhandled = [];
+  const onUnhandled = (reason) => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    const engine = makeAudioEngine();
+    engine.attachAudioEl({});
+    const resume = deferred();
+    env.resumes.push(resume);
+    engine.resume();
+    resume.reject(new DOMException('closed', 'InvalidStateError'));
+    await settle();
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
 });
