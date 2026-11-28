@@ -68,13 +68,37 @@ function assertSliceImages() {
   }
 }
 
+// ページは、外のサイトから何も読み込まない（フォントも自分で配る。SECURITY.md）
+function assertNoExternalLoads(file, html) {
+  const external = html.match(/\b(?:src|href)="(?:https?:)?\/\/[^"]+"/g);
+  if (external) fail(`${file} loads from another site: ${external.join(', ')}`);
+}
+
+// フォント（Zen Maru Gothic）は woff2 だけを配り、ライセンスの文（SIL OFL 1.1）を一緒に置く
+function assertSelfHostedFont() {
+  const assets = readdirSync(join(DIST, 'assets'));
+  if (!assets.some((name) => name.endsWith('.woff2'))) fail('no woff2 font in dist/assets');
+  const woff = assets.filter((name) => name.endsWith('.woff'));
+  if (woff.length) fail(`dist/assets should not contain woff fonts (woff2 only), found ${woff.length}`);
+  for (const name of assets.filter((n) => n.endsWith('.css') || n.endsWith('.js'))) {
+    if (/fonts\.(?:googleapis|gstatic)\.com/.test(readFileSync(join(DIST, 'assets', name), 'utf8'))) {
+      fail(`dist/assets/${name} still refers to Google Fonts`);
+    }
+  }
+  const license = join(DIST, 'licenses', 'zen-maru-gothic-OFL.txt');
+  assertFile(license);
+  if (!readFileSync(license, 'utf8').includes('SIL OPEN FONT LICENSE')) fail(`${license} is not the SIL OFL text`);
+}
+
 for (const file of HTML_FILES) {
   const html = readDistHtml(file);
   assertNoRootAssetReference(file, html);
   assertReferencedBaseAssetsExist(file, html);
+  assertNoExternalLoads(file, html);
   if (file !== 'index.html') assertBaseAssetReference(file, html);
 }
 
 assertSliceImages();
+assertSelfHostedFont();
 
 console.log('Pages build verification passed.');

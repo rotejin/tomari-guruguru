@@ -1,5 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+// フォント（Zen Maru Gothic）は、自分のサイトから配る（Google Fonts からは読まない）
+import '@fontsource/zen-maru-gothic/500.css';
+import '@fontsource/zen-maru-gothic/700.css';
 import charConfig from './character-config';
 import { makeAudioEngine, micErrorMessage } from './audio-engine.js';
 import { clamp, frameDt, stepToward, pointerTarget, gridCell, startAutoBlink } from './motion.js';

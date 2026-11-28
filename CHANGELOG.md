@@ -11,6 +11,12 @@ Notable changes to this repository are recorded here.
 
 A green background (`#00FF00`) for chroma keying in OBS and similar tools can now be chosen on both pages; the README suggested a chroma-key color, but none of the four colors was one.
 
+### 変更 / Changed
+
+- フォント（Zen Maru Gothic）を、Google Fonts から読まず、このサイトから配るようにした（`@fontsource/zen-maru-gothic`、SIL OFL 1.1）。ページを開いた人の IP アドレスなどが Google に伝わらなくなり、外のサイトとの通信は無くなった。配るのは使う太さ（500・700）の woff2 だけで、文字の範囲ごとに分かれているので、読み込むのは画面に出る文字の分だけ（前と同じ）。ライセンスの文は、公開ページの `licenses/zen-maru-gothic-OFL.txt` に置く。公開用のビルドの検査で、外からの読み込みが無いこと・ライセンスの文があることも確かめる。
+
+The font (Zen Maru Gothic) is now served from this site instead of Google Fonts (`@fontsource/zen-maru-gothic`, SIL OFL 1.1), so opening the pages no longer sends anything to Google and the pages make no connections to other sites. Only the woff2 files of the two weights in use (500 and 700) are published, split by character range as before, and the license text is published at `licenses/zen-maru-gothic-OFL.txt`. The Pages build check now fails on any load from another site or a missing font license.
+
 ### 修正 / Fixed
 
 - トーク版で、「マイク開始」をマイクの許可を待つ間にもう一度押すと、マイクを 2 本取り、1 本目が「マイク停止」でも止まらず録音が続いていた。今は、許可を待つ間はボタンを無効にし、始めている途中の 2 回目は何もしない。許可の後の準備で失敗した時も、取ったマイクを止める。

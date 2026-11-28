@@ -41,7 +41,7 @@ http://127.0.0.1:5173/guruguru.html
 
 - マイク入力は `localhost` または HTTPS でのみ利用できます。
 - 開発用サーバーは、この PC の中（`127.0.0.1`）からだけ開けます。同じネットワークのほかの機器からは開けません（安全のため。詳しくは [SECURITY.md](.github/SECURITY.md)）。
-- Google Fonts はCDNから読み込むため、初回表示にはネット接続が必要です。
+- フォント（Zen Maru Gothic）は、このアプリと一緒に配っています。外のサイトからは何も読み込みません。
 
 ## ビルド
 
@@ -219,6 +219,10 @@ F_目閉じ_口開け.png
 
 プログラムコードは MIT License で公開しています。詳細は `LICENSE` を参照してください。
 
+### フォント
+
+画面の文字は Zen Maru Gothic（Copyright 2021 The Zen Maru Gothic Authors、SIL Open Font License 1.1）です。npm の `@fontsource/zen-maru-gothic` から入れ、公開ページでは、ライセンスの文を `licenses/zen-maru-gothic-OFL.txt` に置いています。
+
 ### キャラクター画像・音声・生成素材
 
 キャラクター画像、スライス済みフレーム、サムネイル、音声ファイルは MIT License の対象外です。
@@ -232,3 +236,4 @@ F_目閉じ_口開け.png
 - **Vite 8** — ビルド・開発サーバー
 - **React 19** — UI フレームワーク
 - **@vitejs/plugin-react 6** — JSX トランスフォーム
+- **@fontsource/zen-maru-gothic** — フォント（SIL OFL 1.1）
