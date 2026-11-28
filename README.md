@@ -73,6 +73,7 @@ http://127.0.0.1:4173/tomari-guruguru/guruguru.html
 │   ├── app.jsx             # ぐるぐる版アプリ本体
 │   ├── talk-app.jsx        # トーク版アプリ本体
 │   ├── tweaks-panel.jsx    # 画面右下の調整パネル
+│   ├── audio-engine.js     # トーク版の音声エンジン（マイク・音声ファイルの音量）
 │   └── character-config.js # キャラ画像の参照先を一元管理
 ├── public/
 │   └── slices2/            # スライス済みキャラ画像 (Git追跡)
@@ -86,6 +87,7 @@ http://127.0.0.1:4173/tomari-guruguru/guruguru.html
 │   └── slice_character_sheets.py
 ├── scripts/
 │   └── verify-pages-build.mjs  # 公開用のビルドの検査
+├── tests/                  # 検査（npm test・tools/ の検査）
 ├── .github/                # 公開のワークフロー・案内文書・テンプレート
 ├── sheets/                 # 元シート画像 (Git非追跡)
 ├── uploads/                # 元アップロード画像 (Git非追跡)
@@ -155,7 +157,9 @@ http://127.0.0.1:4173/tomari-guruguru/guruguru.html
 - マイク感度 / 口パクのしきい値 / 口を閉じる速さ / 自動まばたき
 - 追従範囲 / 追従速度 / キャラサイズ / 背景色
 
-OBSなどで使う場合は、背景色をクロマキーしやすい色に調整してください。
+OBSなどで背景を抜く場合は、背景色でグリーン（`#00FF00`、いちばん右）を選び、OBS のクロマキーのフィルターでグリーンを抜いてください（トマリの絵には緑を使っていません）。
+
+Tweaks の値は保存されないので、ページを読み込み直すと既定の値（背景色はクリーム）に戻ります。
 
 ---
 
@@ -192,7 +196,7 @@ F_目閉じ_口開け.png
 2. `docs/01_画像生成用テンプレ.png` と合わせてChatGPT Images 2.0に添付する
 3. `docs/01_画像生成用プロンプト.txt` の指示を使って6枚のシートを作る
 4. 6枚のPNGを `新キャラ資料/` フォルダに入れる
-5. `tools/slice_character_sheets.py` でスライス画像を生成
+5. `tools/slice_character_sheets.py` でスライス画像を生成（Python 3.9 以上と、FFmpeg の `ffmpeg`・`ffprobe` が要ります）
 
 詳しい注意点や検証方法は `docs/新キャラ差し替え手順.md` を参照してください。
 

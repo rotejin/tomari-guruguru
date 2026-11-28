@@ -5,6 +5,12 @@ Notable changes to this repository are recorded here.
 
 ## Unreleased
 
+### 追加 / Added
+
+- 背景色に、OBS などのクロマキーで抜くためのグリーン（`#00FF00`）を足した（両方のページ）。README は「クロマキーしやすい色に」と案内していたが、選べる 4 色にグリーン・ブルーが無かった。
+
+A green background (`#00FF00`) for chroma keying in OBS and similar tools can now be chosen on both pages; the README suggested a chroma-key color, but none of the four colors was one.
+
 ### 修正 / Fixed
 
 - トーク版で、「マイク開始」をマイクの許可を待つ間にもう一度押すと、マイクを 2 本取り、1 本目が「マイク停止」でも止まらず録音が続いていた。今は、許可を待つ間はボタンを無効にし、始めている途中の 2 回目は何もしない。許可の後の準備で失敗した時も、取ったマイクを止める。
@@ -23,6 +29,14 @@ In the talk page, the audio file player sat in the bottom-right corner under the
 In the guruguru page, the first blink in each direction was often missing, because the eyes-closed image was only loaded when the blink started. The 25 eyes-closed images are now loaded up front.
 
 The character sheet tool (`tools/slice_character_sheets.py`) ignored `--quality` and always wrote lossless WebP, about 4 times the size of the published frames for illustrations. It now writes lossy WebP like the published frames (quality 92 by default); `--lossless` keeps the old output. It also shows why ffmpeg or ffprobe failed and stops early when they are missing, skips copying a sheet onto itself (same `--source` and `--uploads-out`), stops instead of silently picking one when a sheet has several candidates or would match an unrelated file such as `ABC.png`, and notes that `--no-component-mode` does not remove gray residue. The tool now has standard-library tests that also run in the Pages workflow.
+
+### そのほか / Other
+
+- `npm run preview` が、ベースパス（`/tomari-guruguru/`）の外の `/talk.html` を開いて 404 になっていた → ベースパスの下の `talk.html` を開く。
+- 公開用のビルドの検査（`scripts/verify-pages-build.mjs`）が `slices2`・`webp` を決め打ちしていて、`src/character-config.js` の `basePath` を変えても、古い `slices2` を見て合格にしていた → `character-config.js` を読んで確かめる。
+- 新キャラの手順書: 生成のコマンドは `public/slices2` に上書きするので `basePath` は変えなくてよいこと、別のフォルダにする時は `.gitignore` も直すこと、確認の URL を `127.0.0.1` に。README: 構成図に `src/audio-engine.js`・`tests/`、新キャラの道具に要る物。SECURITY.md: 調整パネルのやり取りの説明を、実際に合わせた。
+
+`npm run preview` opened `/talk.html` outside the base path (a 404); it now opens `talk.html` under `/tomari-guruguru/`. The Pages build check reads `basePath` and `ext` from `src/character-config.js` instead of always checking `slices2` (which let a changed `basePath` pass). The new-character guide now says that the generation command overwrites `public/slices2` (so `basePath` can stay), that another folder also needs a `.gitignore` entry, and uses `127.0.0.1`; the README lists `src/audio-engine.js`, `tests/` and the tool's requirements; SECURITY.md describes the Tweaks messages as they work.
 
 ## v1.0.0 - 2026-11-28
 

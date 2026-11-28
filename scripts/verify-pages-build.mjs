@@ -1,10 +1,14 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, posix } from 'node:path';
+import charConfig from '../src/character-config.js';
 
 const DIST = 'dist';
 const BASE = '/tomari-guruguru/';
 const HTML_FILES = ['index.html', 'talk.html', 'guruguru.html'];
-const SHEETS = ['A', 'B', 'C', 'D', 'E', 'F'];
+// キャラの画像の置き場所・形式・枚数は、ページと同じ src/character-config.js から読む
+// （basePath や ext を変えた時に、古い slices2 を見て合格にしないため）
+const { basePath: SLICES, ext: EXT, rows: ROWS, cols: COLS } = charConfig;
+const SHEETS = [...Object.values(charConfig.sheets.eyesOpen), ...Object.values(charConfig.sheets.eyesClosed)];
 
 function fail(message) {
   console.error(`Pages build verification failed: ${message}`);
@@ -47,16 +51,18 @@ function assertReferencedBaseAssetsExist(file, html) {
 }
 
 function assertSliceImages() {
+  const expected = ROWS * COLS;
   for (const sheet of SHEETS) {
-    const dir = join(DIST, 'slices2', sheet);
+    const dir = join(DIST, ...SLICES.split('/'), sheet);
     assertFile(dir);
-    const webpFiles = readdirSync(dir).filter((name) => name.endsWith('.webp'));
-    if (webpFiles.length !== 25) {
-      fail(`${posix.join('dist', 'slices2', sheet)} should contain 25 webp files, found ${webpFiles.length}`);
+    const frames = readdirSync(dir).filter((name) => name.endsWith(`.${EXT}`));
+    if (frames.length !== expected) {
+      fail(`${posix.join('dist', SLICES, sheet)} should contain ${expected} ${EXT} files, found ${frames.length}`);
     }
-    for (let r = 0; r < 5; r += 1) {
-      for (let c = 0; c < 5; c += 1) {
-        assertFile(join(dir, `r${r}c${c}.webp`));
+    for (let r = 0; r < ROWS; r += 1) {
+      for (let c = 0; c < COLS; c += 1) {
+        // ページが使うのと同じ名前（character-config.js の src()）で確かめる
+        assertFile(join(DIST, ...charConfig.src(sheet, r, c).split('/')));
       }
     }
   }
