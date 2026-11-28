@@ -38,11 +38,12 @@ In the talk page, a microphone that could not start always showed "check the per
 
 ### そのほか / Other
 
+- React を 18.3.1 から 19.3.1 に上げた（react・react-dom）。コードの変更は無し。React を含むファイルは、圧縮して約 50KB → 約 73KB。
 - `npm run preview` が、ベースパス（`/tomari-guruguru/`）の外の `/talk.html` を開いて 404 になっていた → ベースパスの下の `talk.html` を開く。
 - 公開用のビルドの検査（`scripts/verify-pages-build.mjs`）が `slices2`・`webp` を決め打ちしていて、`src/character-config.js` の `basePath` を変えても、古い `slices2` を見て合格にしていた → `character-config.js` を読んで確かめる。
 - 新キャラの手順書: 生成のコマンドは `public/slices2` に上書きするので `basePath` は変えなくてよいこと、別のフォルダにする時は `.gitignore` も直すこと、確認の URL を `127.0.0.1` に。README: 構成図に `src/audio-engine.js`・`tests/`、新キャラの道具に要る物。SECURITY.md: 調整パネルのやり取りの説明を、実際に合わせた。
 
-`npm run preview` opened `/talk.html` outside the base path (a 404); it now opens `talk.html` under `/tomari-guruguru/`. The Pages build check reads `basePath` and `ext` from `src/character-config.js` instead of always checking `slices2` (which let a changed `basePath` pass). The new-character guide now says that the generation command overwrites `public/slices2` (so `basePath` can stay), that another folder also needs a `.gitignore` entry, and uses `127.0.0.1`; the README lists `src/audio-engine.js`, `tests/` and the tool's requirements; SECURITY.md describes the Tweaks messages as they work.
+React is now 19.3.1 (was 18.3.1), with no code changes; the bundle that contains React grew from about 50 KB to about 73 KB gzipped. `npm run preview` opened `/talk.html` outside the base path (a 404); it now opens `talk.html` under `/tomari-guruguru/`. The Pages build check reads `basePath` and `ext` from `src/character-config.js` instead of always checking `slices2` (which let a changed `basePath` pass). The new-character guide now says that the generation command overwrites `public/slices2` (so `basePath` can stay), that another folder also needs a `.gitignore` entry, and uses `127.0.0.1`; the README lists `src/audio-engine.js`, `tests/` and the tool's requirements; SECURITY.md describes the Tweaks messages as they work.
 
 ## v1.0.0 - 2026-11-28
 
