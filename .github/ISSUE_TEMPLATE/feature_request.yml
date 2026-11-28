@@ -1,0 +1,40 @@
+name: 要望 / Feature request
+description: こんな機能や動きがほしい / Suggest an improvement
+title: "[要望]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 困っていること・したいこと / Problem
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: ほしい機能や動き / Proposed solution
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: ほかに考えた方法 / Alternatives considered
+    validations:
+      required: false
+
+  - type: dropdown
+    id: page
+    attributes:
+      label: どのページか / Page
+      options:
+        - トマリトーク（talk.html） / Talk
+        - トマリぐるぐる（guruguru.html） / Guruguru
+        - 調整パネル（Tweaks） / Tweaks panel
+        - 自分のキャラの作り方（tools・docs） / Making your own character
+        - ドキュメント / Documentation
+        - その他 / Other
+    validations:
+      required: true
