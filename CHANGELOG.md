@@ -3,7 +3,7 @@
 このリポジトリの主な変更を記録します。
 Notable changes to this repository are recorded here.
 
-## 未公開 / Unreleased
+## v1.0.0 - 2026-11-28
 
 ### セキュリティ / Security
 
