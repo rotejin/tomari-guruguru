@@ -158,17 +158,22 @@ function App() {
             }}
           ></img>
         ))}
-        {blink ? (
+        {/* 目閉じ（D）の 25 枚も最初から置いて読み込んでおき、まばたきの間だけ見せる。
+            （まばたきの時に初めて置くと、読み込みが間に合わず、向きごとに最初のまばたきが抜けていた）
+            目開けの絵は下に残すので、目閉じの絵がまだ読めていなくても、キャラは消えない。 */}
+        {frames.map(({ r, c }) => (
           <img
-            src={BLINK_SRC(cell.r, cell.c)}
+            key={`blink-${r}-${c}`}
+            src={BLINK_SRC(r, c)}
             alt=""
             draggable="false"
             style={{
               position: 'absolute', inset: 0, width: '100%', height: '100%',
+              opacity: blink && r === cell.r && c === cell.c ? 1 : 0,
               pointerEvents: 'none'
             }}
           ></img>
-        ) : null}
+        ))}
       </div>
 
       <div style={{
