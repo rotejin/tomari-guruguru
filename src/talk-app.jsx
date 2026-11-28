@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import charConfig from './character-config';
 import { makeAudioEngine, micErrorMessage } from './audio-engine.js';
+import { clamp, frameDt, stepToward, pointerTarget, gridCell, startAutoBlink } from './motion.js';
 import { useTweaks, TweaksPanel, TweakSection, TweakSlider, TweakToggle, TweakColor } from './tweaks-panel.jsx';
 
 const { useState, useEffect, useRef, useMemo } = React;
@@ -33,7 +34,6 @@ const SRC = (sheet, r, c) => charConfig.src(sheet, r, c);
 // 最後のグリーンは、OBS などのクロマキーで背景を抜くため（トマリの絵には緑を使っていない）
 const BG_OPTIONS = ['#FFF8EE', '#FDEFEF', '#EEF4FB', '#2B2926', '#00FF00'];
 
-function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
 // しきい値の刻み（0.005）で足し引きした時の、小数の誤差を消す
 const round3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -71,12 +71,7 @@ function App() {
     function onMove(e) {
       const el = charRef.current;
       if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height * 0.45;
-      const range = tweaksRef.current.followRange;
-      target.current.x = clamp((e.clientX - cx) / range, -1, 1);
-      target.current.y = clamp((e.clientY - cy) / range, -1, 1);
+      target.current = pointerTarget(e.clientX, e.clientY, el.getBoundingClientRect(), tweaksRef.current.followRange);
     }
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerdown', onMove);
@@ -92,16 +87,18 @@ function App() {
     let last = { r: 2, c: 2 };
     let lastMouth = 0;
     let lastSwitch = 0;
+    let lastTime = null;
     function tick(now) {
       const tw = tweaksRef.current;
-      current.current.x += (target.current.x - current.current.x) * tw.smoothing;
-      current.current.y += (target.current.y - current.current.y) * tw.smoothing;
-      const c = clamp(Math.round((current.current.x + 1) / 2 * (COLS - 1)), 0, COLS - 1);
-      const r = clamp(Math.round((current.current.y + 1) / 2 * (ROWS - 1)), 0, ROWS - 1);
+      // 追従・口の開け閉めの速さを、実際のフレームの間隔に合わせる（120Hz・144Hz でも 60Hz と同じ速さ）
+      const dt = frameDt(now, lastTime);
+      lastTime = now;
+      current.current.x = stepToward(current.current.x, target.current.x, tw.smoothing, dt);
+      current.current.y = stepToward(current.current.y, target.current.y, tw.smoothing, dt);
+      const { r, c } = gridCell(current.current.x, current.current.y, ROWS, COLS);
       if (r !== last.r || c !== last.c) { last = { r, c }; setCell(last); }
       const raw = engine.level() * tw.micGain;
-      if (raw > env.current) env.current += (raw - env.current) * 0.6;
-      else env.current += (raw - env.current) * tw.release;
+      env.current = stepToward(env.current, raw, raw > env.current ? 0.6 : tw.release, dt);
       if (meterRef.current) {
         meterRef.current.style.width = `${clamp(env.current / 0.4, 0, 1) * 100}%`;
       }
@@ -116,44 +113,10 @@ function App() {
     return () => cancelAnimationFrame(raf);
   }, [engine]);
 
-  // 自動まばたき（自然なゆらぎ: 不規則な間隔 + 二度瞬き + ゆっくり瞬き）
+  // 自動まばたき（中身は src/motion.js。ぐるぐる版と同じ）
   useEffect(() => {
-    if (!t.autoBlink) { setBlink(false); return; }
-    let alive = true;
-    let timer;
-    const rand = (a, b) => a + Math.random() * (b - a);
-    function blinkOnce(dur, after) {
-      setBlink(true);
-      timer = setTimeout(() => {
-        if (!alive) return;
-        setBlink(false);
-        timer = setTimeout(after, rand(120, 220));
-      }, dur);
-    }
-    function doBlink() {
-      if (!alive) return;
-      const roll = Math.random();
-      if (roll < 0.22) {
-        // 二度瞬き（パチパチ）
-        blinkOnce(rand(80, 120), () => { if (alive) blinkOnce(rand(70, 110), schedule); });
-      } else if (roll < 0.28) {
-        // ゆっくり瞬き
-        blinkOnce(rand(260, 420), schedule);
-      } else {
-        blinkOnce(rand(90, 150), schedule);
-      }
-    }
-    function schedule() {
-      if (!alive) return;
-      const u = Math.random();
-      let wait;
-      if (u < 0.12) wait = rand(700, 1500);        // たまに間隔が詰まる
-      else if (u < 0.82) wait = rand(1800, 4500);  // 通常
-      else wait = rand(4500, 9000);                // ぼーっとする間
-      timer = setTimeout(doBlink, wait);
-    }
-    schedule();
-    return () => { alive = false; clearTimeout(timer); };
+    if (!t.autoBlink) { setBlink(false); return undefined; }
+    return startAutoBlink(setBlink);
   }, [t.autoBlink]);
 
   async function toggleMic() {
