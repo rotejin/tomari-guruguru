@@ -5,15 +5,18 @@ import React from 'react';
 /* BEGIN USAGE */
 // tweaks-panel.jsx
 // Reusable Tweaks shell + form-control helpers.
-// Exports (to window): useTweaks, TweaksPanel, TweakSection, TweakRow, TweakSlider,
-//   TweakToggle, TweakRadio, TweakSelect, TweakText, TweakNumber, TweakColor, TweakButton.
+// Exports (ES module; import them where you use them): useTweaks, TweaksPanel,
+//   TweakSection, TweakRow, TweakSlider, TweakToggle, TweakRadio, TweakSelect,
+//   TweakText, TweakNumber, TweakColor, TweakButton.
 //
 // Owns the host protocol (listens for __activate_edit_mode / __deactivate_edit_mode,
 // posts __edit_mode_available / __edit_mode_set_keys / __edit_mode_dismissed) so
 // individual prototypes don't re-roll it. Ships a consistent set of controls so you
 // don't hand-draw <input type="range">, segmented radios, steppers, etc.
 //
-// Usage (in an HTML file that loads React + Babel):
+// Usage:
+//
+//   import { useTweaks, TweaksPanel, TweakSection, TweakSlider } from './tweaks-panel.jsx';
 //
 //   const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 //     "primaryColor": "#D97757",
@@ -252,9 +255,18 @@ function TweaksPanel({ title = 'Tweaks', children }) {
     window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*');
   };
 
+  // ドラッグ中に付けたリスナーを外す関数。ボタンを離す前に窓から外れた時（blur）・
+  // パネルが閉じた時・部品が外された時にも外す（残ると、ボタンを押していないのにパネルが動く）。
+  const endDragRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!open && endDragRef.current) endDragRef.current();
+  }, [open]);
+  React.useEffect(() => () => { if (endDragRef.current) endDragRef.current(); }, []);
+
   const onDragStart = (e) => {
     const panel = dragRef.current;
     if (!panel) return;
+    if (endDragRef.current) endDragRef.current();
     const r = panel.getBoundingClientRect();
     const sx = e.clientX, sy = e.clientY;
     const startRight = window.innerWidth - r.right;
@@ -269,9 +281,13 @@ function TweaksPanel({ title = 'Tweaks', children }) {
     const up = () => {
       window.removeEventListener('mousemove', move);
       window.removeEventListener('mouseup', up);
+      window.removeEventListener('blur', up);
+      endDragRef.current = null;
     };
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
+    window.addEventListener('blur', up);
+    endDragRef.current = up;
   };
 
   if (!open) {
@@ -291,7 +307,7 @@ function TweaksPanel({ title = 'Tweaks', children }) {
            style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
         <div className="twk-hd" onMouseDown={onDragStart}>
           <b>{title}</b>
-          <button className="twk-x" aria-label="Close tweaks"
+          <button type="button" className="twk-x" aria-label="Close tweaks"
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={dismiss}>✕</button>
         </div>
@@ -553,8 +569,10 @@ function TweakButton({ label, onClick, secondary = false }) {
   );
 }
 
-Object.assign(window, {
+// このリポジトリ（Vite）では、使う側が import する。window には置かない
+// （置くと、使っていない部品もビルドに残り、読み込む順番にも頼ることになっていた）。
+export {
   useTweaks, TweaksPanel, TweakSection, TweakRow,
   TweakSlider, TweakToggle, TweakRadio, TweakSelect,
   TweakText, TweakNumber, TweakColor, TweakButton,
-});
+};

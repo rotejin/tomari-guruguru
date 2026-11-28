@@ -25,6 +25,7 @@ A green background (`#00FF00`) for chroma keying in OBS and similar tools can no
 - トーク版の音声ファイル: 同じファイルを選び直すと、読み込み直さなかった → 読み込み直す。再生バーから再生した時に、音の処理（AudioContext）を動かし直すようにした。
 - トーク版の調整: 「しきい値（はんびらき）」を「ぜんかい」以上にすると、はんびらきの口が一度も出なくなっていた → 片方を動かすと、もう片方を 1 目盛りずらして、はんびらき < ぜんかい を保つ。
 - トーク版の画面: 「♪ 音声ファイル」をボタンにして、キーボード（Tab・Enter）でも選べるようにした。マイクのエラーの文を読み上げの対象（role="alert"）にし、暗い背景では明るい赤にした（前はコントラスト比 2.2:1）。
+- 調整パネル（Tweaks）を、見出しでつかんで動かす途中にほかの窓へ切り替えると、戻った後、ボタンを押していないのにパネルがマウスに付いてきた → 窓から外れた時・パネルを閉じた時にも、つかむのを終える。
 
 In the talk page, pressing "マイク開始" again while the browser was still asking for microphone access opened a second microphone stream, and the first one kept recording even after "マイク停止". The button is now disabled while waiting, a second start is ignored, and a stream is stopped if setting it up fails. The audio engine now lives in `src/audio-engine.js`, with microphone start/stop tests (`npm test`, node only) that also run in the Pages workflow before the build.
 
@@ -36,14 +37,17 @@ The character sheet tool (`tools/slice_character_sheets.py`) ignored `--quality`
 
 In the talk page, a microphone that could not start always showed "check the permission" and logged nothing; the message now tells apart a denied permission, a missing microphone, a microphone used by another app and a page where microphones are unavailable, and the error is logged to the console. When a running microphone ends on its own (for example, it was unplugged), the page now stops it and shows "マイク開始" again instead of staying on "マイク停止". Choosing the same audio file again now reloads it, playing from the player resumes the audio context, and the two mouth thresholds are kept in order (half-open below fully open). The audio file control is now a button that can be used with the keyboard, and the microphone error is announced (role="alert") and shown in a lighter red on the dark background.
 
+Dragging the Tweaks panel by its header and switching to another window before releasing the button left the panel following the mouse afterwards; the drag now also ends when the window loses focus or the panel closes.
+
 ### そのほか / Other
 
+- 調整パネルの部品（`src/tweaks-panel.jsx`）を、`window` に置かず、使う側が import するようにした（HTML の読み込みが 1 つ減り、使っていない部品がビルドから消えた）。`start.bat` は `npm run dev` で起動する（`node_modules` が欠けていた時に、`npx` が最新の vite を取ってこないように）。
 - React を 18.3.1 から 19.3.1 に上げた（react・react-dom）。コードの変更は無し。React を含むファイルは、圧縮して約 50KB → 約 73KB。
 - `npm run preview` が、ベースパス（`/tomari-guruguru/`）の外の `/talk.html` を開いて 404 になっていた → ベースパスの下の `talk.html` を開く。
 - 公開用のビルドの検査（`scripts/verify-pages-build.mjs`）が `slices2`・`webp` を決め打ちしていて、`src/character-config.js` の `basePath` を変えても、古い `slices2` を見て合格にしていた → `character-config.js` を読んで確かめる。
 - 新キャラの手順書: 生成のコマンドは `public/slices2` に上書きするので `basePath` は変えなくてよいこと、別のフォルダにする時は `.gitignore` も直すこと、確認の URL を `127.0.0.1` に。README: 構成図に `src/audio-engine.js`・`tests/`、新キャラの道具に要る物。SECURITY.md: 調整パネルのやり取りの説明を、実際に合わせた。
 
-React is now 19.3.1 (was 18.3.1), with no code changes; the bundle that contains React grew from about 50 KB to about 73 KB gzipped. `npm run preview` opened `/talk.html` outside the base path (a 404); it now opens `talk.html` under `/tomari-guruguru/`. The Pages build check reads `basePath` and `ext` from `src/character-config.js` instead of always checking `slices2` (which let a changed `basePath` pass). The new-character guide now says that the generation command overwrites `public/slices2` (so `basePath` can stay), that another folder also needs a `.gitignore` entry, and uses `127.0.0.1`; the README lists `src/audio-engine.js`, `tests/` and the tool's requirements; SECURITY.md describes the Tweaks messages as they work.
+The Tweaks controls are now imported as ES modules instead of being put on `window` (one script tag less, and unused controls are left out of the build), and `start.bat` starts the server with `npm run dev` so that `npx` never fetches an unpinned vite. React is now 19.3.1 (was 18.3.1), with no code changes; the bundle that contains React grew from about 50 KB to about 73 KB gzipped. `npm run preview` opened `/talk.html` outside the base path (a 404); it now opens `talk.html` under `/tomari-guruguru/`. The Pages build check reads `basePath` and `ext` from `src/character-config.js` instead of always checking `slices2` (which let a changed `basePath` pass). The new-character guide now says that the generation command overwrites `public/slices2` (so `basePath` can stay), that another folder also needs a `.gitignore` entry, and uses `127.0.0.1`; the README lists `src/audio-engine.js`, `tests/` and the tool's requirements; SECURITY.md describes the Tweaks messages as they work.
 
 ## v1.0.0 - 2026-11-28
 
