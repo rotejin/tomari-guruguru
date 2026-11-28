@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import os
+import re
 import shutil
 import subprocess
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -18,23 +21,63 @@ SHEET_NAMES = {
 }
 
 
+class ToolError(Exception):
+    """A failure to show as a short message instead of a traceback."""
+
+
 def run(cmd: list[str], *, input_bytes: bytes | None = None) -> bytes:
-    return subprocess.run(
-        cmd,
-        input=input_bytes,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=True,
-    ).stdout
+    try:
+        return subprocess.run(
+            cmd,
+            input=input_bytes,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        ).stdout
+    except FileNotFoundError as exc:
+        raise ToolError(
+            f"{cmd[0]} was not found. Install FFmpeg and make sure {cmd[0]} is on PATH."
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        # Show what ffmpeg / ffprobe said; "returned non-zero exit status 1" alone
+        # does not tell why it failed.
+        detail = (exc.stderr or b"").decode("utf-8", errors="replace").strip()
+        raise ToolError(
+            f"{cmd[0]} failed (exit code {exc.returncode}): {detail or '(no message)'}"
+        ) from exc
+
+
+_ASCII_ALNUM = re.compile(r"[A-Za-z0-9]")
 
 
 def find_source(source_dir: Path, sheet: str) -> Path:
     matches = sorted(source_dir.glob(f"{sheet}_*.png"))
     if not matches:
-        matches = sorted(source_dir.glob(f"{sheet}*.png"))
+        # Fallback for names such as "A.png" or "A-目開け.png". Skip names where the
+        # sheet letter is followed by another letter or digit ("ABC.png", "A2.png"),
+        # which are other files rather than sheet A.
+        matches = sorted(
+            path
+            for path in source_dir.glob(f"{sheet}*.png")
+            if not _ASCII_ALNUM.match(path.stem[len(sheet) : len(sheet) + 1])
+        )
     if not matches:
-        raise FileNotFoundError(f"{sheet} sheet PNG was not found in {source_dir}")
+        raise ToolError(f"{sheet} sheet PNG was not found in {source_dir}")
+    if len(matches) > 1:
+        names = ", ".join(path.name for path in matches)
+        raise ToolError(
+            f"more than one {sheet} sheet PNG was found in {source_dir}: {names}. "
+            "Keep only one of them."
+        )
     return matches[0]
+
+
+def copy_unless_same(src: Path, dst: Path) -> None:
+    # Copying a file onto itself fails (PermissionError on Windows, SameFileError
+    # elsewhere), e.g. when --source and --uploads-out are the same folder.
+    if dst.exists() and os.path.samefile(src, dst):
+        return
+    shutil.copy2(src, dst)
 
 
 def probe_size(path: Path) -> tuple[int, int]:
@@ -440,6 +483,7 @@ def encode_image(
     canvas_size: int,
     image_format: str,
     quality: int,
+    lossless: bool = False,
 ) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     if image_format == "png":
@@ -480,8 +524,14 @@ def encode_image(
             "1",
             "-c:v",
             "libwebp",
-            "-lossless",
-            "1",
+        ]
+        # Lossy by default, like the published frames (about 45 KB each).
+        # Lossless frames are about 4 times larger.
+        if lossless:
+            cmd += ["-lossless", "1"]
+        else:
+            cmd += ["-lossless", "0", "-quality", str(quality)]
+        cmd += [
             "-compression_level",
             "6",
             str(out_path),
@@ -520,7 +570,17 @@ def main() -> None:
     parser.add_argument("--row-threshold", default=20, type=int)
     parser.add_argument("--row-margin", default=8, type=int)
     parser.add_argument("--format", default="webp", choices=["png", "webp"])
-    parser.add_argument("--quality", default=92, type=int)
+    parser.add_argument(
+        "--quality",
+        default=92,
+        type=int,
+        help="WebP quality (0-100) for lossy frames. Ignored with --lossless and for PNG.",
+    )
+    parser.add_argument(
+        "--lossless",
+        action="store_true",
+        help="Write lossless WebP frames (about 4 times larger than the default lossy ones).",
+    )
     parser.add_argument("--jobs", default=1, type=int)
     parser.add_argument("--min-component-area", default=80, type=int)
     parser.add_argument(
@@ -535,6 +595,18 @@ def main() -> None:
         help="Skip frames that already exist, are non-empty, and are newer than the source sheet.",
     )
     args = parser.parse_args()
+
+    if not 0 <= args.quality <= 100:
+        parser.error("--quality must be between 0 and 100")
+    missing = [name for name in ("ffmpeg", "ffprobe") if shutil.which(name) is None]
+    if missing:
+        parser.exit(
+            1,
+            f"error: {' and '.join(missing)} not found on PATH. "
+            "Install FFmpeg (it includes ffprobe) and run this again.\n",
+        )
+    if not args.component_mode and args.remove_gray_residue:
+        print("NOTE: --remove-gray-residue is not applied with --no-component-mode")
 
     args.sheets_out.mkdir(parents=True, exist_ok=True)
     args.uploads_out.mkdir(parents=True, exist_ok=True)
@@ -555,8 +627,8 @@ def main() -> None:
             w, h = w_orig, h_orig
             resize_target = None
 
-        shutil.copy2(src, args.sheets_out / f"{sheet}.png")
-        shutil.copy2(src, args.uploads_out / src.name)
+        copy_unless_same(src, args.sheets_out / f"{sheet}.png")
+        copy_unless_same(src, args.uploads_out / src.name)
 
         pending: list[tuple[int, int, Path]] = []
         for row in range(5):
@@ -602,47 +674,53 @@ def main() -> None:
         jobs = max(1, args.jobs)
         futures = []
         executor = ThreadPoolExecutor(max_workers=jobs) if jobs > 1 else None
-        for row, col, out in pending:
-            if args.component_mode:
-                raw, offset, bbox, area = compose_cell_from_components(
-                    data,
-                    w,
-                    components,
-                    assignments[(row, col)],
-                    args.canvas,
-                    args.anchor_x,
-                    args.anchor_y,
-                )
-            else:
-                raw, offset = compose_cell(
-                    data,
-                    w,
-                    row,
-                    col,
-                    args.cell,
-                    args.canvas,
-                    args.anchor_x,
-                    args.anchor_y,
-                    args.alpha_threshold,
-                    args.row_threshold,
-                    args.row_margin,
-                )
-                bbox = (col * args.cell, row * args.cell, (col + 1) * args.cell - 1, (row + 1) * args.cell - 1)
-                area = 0
-            if executor:
-                futures.append((out, offset, executor.submit(encode_image, raw, out, args.canvas, args.format, args.quality)))
-            else:
-                encode_image(raw, out, args.canvas, args.format, args.quality)
-                print(f"  {out.as_posix()} offset={offset} bbox={bbox} area={area}")
+        try:
+            for row, col, out in pending:
+                if args.component_mode:
+                    raw, offset, bbox, area = compose_cell_from_components(
+                        data,
+                        w,
+                        components,
+                        assignments[(row, col)],
+                        args.canvas,
+                        args.anchor_x,
+                        args.anchor_y,
+                    )
+                else:
+                    raw, offset = compose_cell(
+                        data,
+                        w,
+                        row,
+                        col,
+                        args.cell,
+                        args.canvas,
+                        args.anchor_x,
+                        args.anchor_y,
+                        args.alpha_threshold,
+                        args.row_threshold,
+                        args.row_margin,
+                    )
+                    bbox = (col * args.cell, row * args.cell, (col + 1) * args.cell - 1, (row + 1) * args.cell - 1)
+                    area = 0
+                if executor:
+                    futures.append((out, offset, executor.submit(encode_image, raw, out, args.canvas, args.format, args.quality, args.lossless)))
+                else:
+                    encode_image(raw, out, args.canvas, args.format, args.quality, args.lossless)
+                    print(f"  {out.as_posix()} offset={offset} bbox={bbox} area={area}")
 
-        if executor:
-            try:
+            if executor:
                 for out, offset, future in futures:
                     future.result()
                     print(f"  {out.as_posix()} offset={offset}")
-            finally:
-                executor.shutdown(wait=True)
+        finally:
+            # On an error, drop the frames that have not started yet and wait for
+            # the ones already running, so no ffmpeg is left writing a frame.
+            if executor:
+                executor.shutdown(wait=True, cancel_futures=True)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except ToolError as exc:
+        sys.exit(f"error: {exc}")

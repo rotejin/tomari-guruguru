@@ -45,6 +45,11 @@ jobs:
       - name: Tests
         run: npm test
 
+      # The character sheet tool (tools/slice_character_sheets.py). Standard library
+      # only; ffmpeg is not needed because the tests only look at the commands.
+      - name: Tests (character sheet tool)
+        run: python3 -B -m unittest discover -s tests -p "test_*.py" -v
+
       - name: Build
         run: npm run build
 
