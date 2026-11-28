@@ -27,6 +27,7 @@ A green background (`#00FF00`) for chroma keying in OBS and similar tools can no
 - トーク版の画面: 「♪ 音声ファイル」をボタンにして、キーボード（Tab・Enter）でも選べるようにした。マイクのエラーの文を読み上げの対象（role="alert"）にし、暗い背景では明るい赤にした（前はコントラスト比 2.2:1）。
 - 調整パネル（Tweaks）を、見出しでつかんで動かす途中にほかの窓へ切り替えると、戻った後、ボタンを押していないのにパネルがマウスに付いてきた → 窓から外れた時・パネルを閉じた時にも、つかむのを終える。
 - 追従の速さ・口を閉じる速さが、モニターのリフレッシュレートで変わっていた（毎フレーム同じ割合で近づけていたので、144Hz では 60Hz の 2 倍以上の速さ）→ 実際のフレームの間隔に合わせる。60Hz の画面では、前と同じ動き。
+- トーク版の下の操作バーが、幅 940px くらいより狭いと縮み、「マイク開始」「音声ファイル」の字が 1 文字ずつ折り返していた（画面の半分の幅までしか広がれなかった）。360px くらいでは、右下の Tweaks のボタンとも重なっていた → 中身の幅まで広がり、入りきらない時はボタンごと 2 段にする。幅 660px 以下では、Tweaks のボタンの上に出す。
 
 In the talk page, pressing "マイク開始" again while the browser was still asking for microphone access opened a second microphone stream, and the first one kept recording even after "マイク停止". The button is now disabled while waiting, a second start is ignored, and a stream is stopped if setting it up fails. The audio engine now lives in `src/audio-engine.js`, with microphone start/stop tests (`npm test`, node only) that also run in the Pages workflow before the build.
 
@@ -41,6 +42,8 @@ In the talk page, a microphone that could not start always showed "check the per
 Dragging the Tweaks panel by its header and switching to another window before releasing the button left the panel following the mouse afterwards; the drag now also ends when the window loses focus or the panel closes.
 
 Following and mouth closing ran faster on high refresh rate monitors (more than twice as fast at 144 Hz), because every frame moved by the same fraction. They now follow the real frame interval, so 120 Hz and 144 Hz screens move like 60 Hz ones; on a 60 Hz screen nothing changes.
+
+The control bar of the talk page could only be half as wide as the window, so below about 940 px its buttons wrapped one character per line, and around 360 px it also ran under the Tweaks button. It now grows to its content width, wraps whole buttons onto a second row when it has to, and sits above the Tweaks button on windows 660 px wide or narrower.
 
 ### そのほか / Other
 

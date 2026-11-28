@@ -197,21 +197,23 @@ function App() {
       </div>
 
       {/* 下の中央に、上から エラーの文・音声ファイルの再生バー・操作バー の順に積む。
-          （再生バーを右下に置くと、右下の Tweaks のボタン・パネルと重なっていた） */}
-      <div style={{
-        position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+          （再生バーを右下に置くと、右下の Tweaks のボタン・パネルと重なっていた）
+          置き場所と幅は talk.html の .talk-dock（狭い画面では、Tweaks のボタンの上に出す） */}
+      <div className="talk-dock" style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10
       }}>
         {micErr ? (
           // 暗い背景では、明るい赤にする（#B3261E のままだとコントラスト比が 2.2:1 で読みにくい）
-          <div role="alert" style={{ color: dark ? '#FF8A80' : '#B3261E', fontSize: 13, fontWeight: 700 }}>{micErr}</div>
+          <div role="alert" style={{ color: dark ? '#FF8A80' : '#B3261E', fontSize: 13, fontWeight: 700, textAlign: 'center' }}>{micErr}</div>
         ) : null}
         {/* 再生バーから再生した時も、音の処理（AudioContext）を動かす（止まっていると、音も口パクも出ない） */}
         <audio ref={audioElRef} controls onPlay={() => engine.resume()} style={{
           width: 260, display: fileName ? 'block' : 'none', cursor: 'default'
         }}></audio>
+        {/* 入りきらない時は、字を 1 文字ずつ折り返さず、ボタンごと次の段へ */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 14,
+          flexWrap: 'wrap', justifyContent: 'center',
           background: panelBg, backdropFilter: 'blur(10px)',
           border: `1px solid ${lineColor}`, borderRadius: 18,
           padding: '12px 18px', cursor: 'default',
@@ -219,7 +221,7 @@ function App() {
         }}>
           <button onClick={toggleMic} disabled={micPending} aria-busy={micPending} style={{
             display: 'flex', alignItems: 'center', gap: 8,
-            fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
+            fontFamily: 'inherit', fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap',
             color: micOn ? '#fff' : inkColor,
             background: micOn ? '#D96C4F' : 'transparent',
             border: `1.5px solid ${micOn ? '#D96C4F' : lineColor}`,
@@ -237,7 +239,7 @@ function App() {
           {/* ボタンにして、キーボード（Tab・Enter・Space）でも選べるようにする（前は label で、Tab で届かなかった） */}
           <button type="button" onClick={() => fileInputRef.current && fileInputRef.current.click()} style={{
             display: 'flex', alignItems: 'center', gap: 8,
-            fontFamily: 'inherit', fontWeight: 700, fontSize: 14, color: inkColor,
+            fontFamily: 'inherit', fontWeight: 700, fontSize: 14, color: inkColor, whiteSpace: 'nowrap',
             background: 'transparent',
             border: `1.5px solid ${lineColor}`, borderRadius: 12,
             padding: '9px 16px', cursor: 'pointer', minHeight: 44, boxSizing: 'border-box'
