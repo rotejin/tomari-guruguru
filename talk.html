@@ -8,6 +8,12 @@
 <style>
   html, body { margin: 0; padding: 0; height: 100%; }
   img { -webkit-user-drag: none; }
+  /* 下の中央の箱（エラーの文・再生バー・操作バー）。中身の幅まで広がり、画面より広くはならない。
+     （left: 50% だけだと、画面の半分の幅までしか広がれず、幅 940px くらいから字が折り返していた） */
+  .talk-dock { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    width: max-content; max-width: calc(100vw - 32px); }
+  /* 狭い画面では、右下の Tweaks のボタン（高さ 約 32px）にかぶらないよう、その上に出す */
+  @media (max-width: 660px) { .talk-dock { bottom: 60px; } }
   @media (prefers-reduced-motion: no-preference) {
     .bob { animation: bob 3.4s ease-in-out infinite; }
     @keyframes bob {
